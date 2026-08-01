@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b5cab" />
+  <meta name="description" content="AHU sizing and vendor-selection check: airflow, coil ADP/bypass factor, chilled-water flow, pipe sizes and preliminary coil geometry." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <title>AHU Sizing Calculator v1.6</title>
+  <style>
+    :root{--bg:#f4f7fb;--card:#fff;--text:#172033;--muted:#637083;--primary:#0b5cab;--primary2:#0a7ac2;--border:#dbe3ec;--ok:#137333;--warn:#9a6700;--danger:#b3261e;--shadow:0 10px 28px rgba(24,50,82,.09)}
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    header{background:linear-gradient(135deg,var(--primary),var(--primary2));color:#fff;padding:18px}
+    .top{max-width:1200px;margin:auto;display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+    h1{font-size:clamp(20px,3.4vw,30px);margin:0}.subtitle{opacity:.92;margin-top:5px;font-size:13px}
+    .actions{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{border:0;border-radius:10px;padding:10px 14px;font-weight:700;cursor:pointer;font-size:14px}
+    .btn-light{background:#fff;color:var(--primary)}.btn-primary{background:var(--primary);color:#fff}.btn-outline{background:transparent;color:var(--primary);border:1px solid var(--primary)}.btn-ghost{background:#eef4fb;color:var(--primary)}
+    .btn:focus-visible,input:focus-visible,select:focus-visible,[role=tab]:focus-visible{outline:3px solid #ffb703;outline-offset:2px}
+    main{max-width:1200px;margin:18px auto;padding:0 14px 40px}
+
+    /* ---- tabs ---- */
+    .tabwrap{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:0}
+    .tabs{display:flex;gap:6px;flex:1;min-width:280px;overflow-x:auto;scrollbar-width:none}
+    .tabs::-webkit-scrollbar{display:none}
+    [role=tab]{border:1px solid var(--border);border-bottom:0;background:#e8eef6;color:var(--muted);
+      border-radius:12px 12px 0 0;padding:11px 16px;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap;
+      display:flex;align-items:center;gap:8px}
+    [role=tab][aria-selected=true]{background:#fff;color:var(--primary);border-color:var(--border);box-shadow:0 -3px 0 var(--primary) inset;position:relative;z-index:2}
+    [role=tab] .tnum{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:6px;background:#cfe0f2;color:var(--primary);font-size:12px;flex:none}
+    [role=tab][aria-selected=true] .tnum{background:var(--primary);color:#fff}
+    [role=tab] .cnt{background:#dbe6f3;color:var(--primary);border-radius:999px;font-size:11px;padding:1px 7px}
+    .tabtool{display:flex;align-items:center;gap:8px;padding-bottom:6px}
+    .tabtool label{font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+    .tabtool select{width:auto;padding:7px 10px;font-size:13px}
+    .legend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:var(--muted);
+      background:#fff;border:1px solid var(--border);border-top:0;border-radius:0 0 12px 12px;padding:8px 14px;margin-bottom:14px}
+    .legend span+span{margin-right:12px}
+    .lg-sug,.lg-own{width:22px;height:13px;border-radius:4px;flex:none;margin-right:-4px}
+    .lg-sug{border:1px dashed #e39a9a;background:#fffafa}
+    .lg-own{border:1px solid #7bb6e8;background:#eaf5ff}
+    .lg-count{margin-left:auto;font-weight:800;color:#b3261e;background:#fdecec;border-radius:999px;padding:3px 10px}
+    .lg-count:empty{display:none}
+    .panel{background:transparent;border-top:1px solid var(--border);padding-top:16px}
+    .panel[hidden]{display:none}
+
+    /* ---- sticky key results ---- */
+    .keybar{position:sticky;top:0;z-index:6;background:#0d4f24;color:#fff;border-radius:0 0 14px 14px;
+      padding:10px 14px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;
+      box-shadow:0 6px 18px rgba(13,79,36,.22);margin-bottom:16px}
+    .keybar .k{min-width:0}
+    .keybar .kl{font-size:11px;opacity:.82;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .keybar .kv{font-size:17px;font-weight:850;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .keybar .kv small{font-size:11px;opacity:.85;font-weight:700;margin-left:2px}
+    .keybar.bad{background:#8c2018;box-shadow:0 6px 18px rgba(140,32,24,.25)}
+
+    .meta{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:14px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;box-shadow:var(--shadow)}
+    /* each block carries its own accent so it is recognisable at a glance */
+    .card.c1{--accent:#1552b0;--tint:#eef4fd;--edge:#c3d8f5}   /* load / known input */
+    .card.c2{--accent:#0e7c86;--tint:#e8f7f8;--edge:#b6e2e6}   /* air conditions     */
+    .card.c3{--accent:#7b3fa0;--tint:#f5eefa;--edge:#dcc6ea}   /* water side         */
+    .card.c4{--accent:#0b7a45;--tint:#eaf7ef;--edge:#bee2cd}   /* coil               */
+    .card.c5{--accent:#b45309;--tint:#fdf3e7;--edge:#f0d5b0}   /* fan & ventilation  */
+    .card.c6{--accent:#455a64;--tint:#eff2f4;--edge:#ccd6db}   /* schedule           */
+    .card.c1,.card.c2,.card.c3,.card.c4,.card.c5,.card.c6{
+      border-top:0;border-left:6px solid var(--accent);
+      background:linear-gradient(var(--tint) 0 66px,#fff 66px)}
+    .card h2{font-size:17px;margin:0 0 12px;color:var(--accent,var(--primary));display:flex;align-items:center;gap:9px;
+      padding-bottom:10px;border-bottom:2px solid var(--edge,var(--border))}
+    .num{display:inline-grid;place-items:center;width:27px;height:27px;border-radius:9px;background:var(--accent,var(--primary));color:#fff;font-size:13px;font-weight:800;flex:none}
+    .card input:focus,.card select:focus{border-color:var(--accent,var(--primary));box-shadow:0 0 0 3px var(--tint,#eaf5ff)}
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .field label{display:block;font-size:13px;font-weight:700;margin-bottom:6px}.field small{display:block;color:var(--muted);margin-top:4px;line-height:1.35}
+    input,select{width:100%;padding:11px 12px;border:1px solid #7bb6e8;border-radius:10px;background:#eaf5ff;color:#102a43;font-size:15px;font-weight:650}
+    /* an empty field shows its suggested value in red; a value you type is black */
+    input::placeholder{color:#c62828;font-weight:750;opacity:1}
+    input:placeholder-shown{border-style:dashed;border-color:#e39a9a;background:#fffafa}
+    input:placeholder-shown:hover{background:#fff4f4;border-color:#d97b7b}
+    input:not(:placeholder-shown){color:#0f172a;font-weight:750}
+    .field:has(input:placeholder-shown) label::after{content:'GỢI Ý';color:#b3261e;background:#fdecec;border-color:#f0bcbc}
+    input[type=text]{font-weight:600}
+    input:hover,select:hover{background:#e2f1ff;border-color:#4d9bdd}input:focus,select:focus{border-color:var(--primary);background:#fff}
+    input:disabled,select:disabled{background:#eef1f4;border-color:#cbd3dc;color:#7b8794;cursor:not-allowed}
+    .field label::after{content:'INPUT';font-size:9px;letter-spacing:.08em;color:var(--accent,#0b5cab);background:var(--tint,#d9edff);border:1px solid var(--edge,#a8d2f5);border-radius:999px;padding:2px 5px;margin-left:6px;vertical-align:1px}
+    .tabtool label::after{display:none}
+    .full{grid-column:1/-1}
+    .result-card{margin-top:16px;border:2px solid #8bc59d;background:#f7fff9}.result-card h2{color:#137333}
+    .results{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .grp{grid-column:1/-1;font-size:12px;font-weight:850;letter-spacing:.06em;text-transform:uppercase;
+      color:var(--gc,#2f6b46);border-bottom:2px solid var(--ge,#bfe3cb);padding:11px 0 5px;margin-top:6px;
+      display:flex;align-items:center;gap:8px}
+    .grp::before{content:'';width:11px;height:11px;border-radius:3px;background:var(--gc,#2f6b46);flex:none}
+    .grp:first-child{margin-top:0}
+    .grp.g-load{--gc:#1552b0;--ge:#c3d8f5}.grp.g-air{--gc:#0e7c86;--ge:#b6e2e6}
+    .grp.g-coil{--gc:#0b7a45;--ge:#bee2cd}.grp.g-water{--gc:#7b3fa0;--ge:#dcc6ea}
+    .metric{border:1px solid #a7d7b4;border-left:5px solid #34a853;border-radius:12px;padding:12px;background:#eaf7ee;transition:transform .18s ease,background .18s ease}
+    .metric .label{font-size:12px;color:#356247;min-height:30px;font-weight:700}
+    .metric .label::after{content:'CALC';font-size:9px;letter-spacing:.07em;color:#137333;background:#d7f0de;border:1px solid #9fd0ac;border-radius:999px;padding:2px 5px;margin-left:5px}
+    .metric.est{border-left-color:#c58f34;border-color:#e0c48d;background:#fdf6e9}.metric.est .label{color:#6b4d13}.metric.est .label::after{content:'EST';color:#8a6212;background:#f6e6c4;border-color:#dcc08a}.metric.est .value{color:#6b4d13}
+    .metric .value{font-size:19px;font-weight:850;margin-top:6px;word-break:break-word;color:#0d4f24}.metric .unit{font-size:12px;color:#477a58;margin-left:3px;font-weight:700}
+    .metric.key{background:#dff4e5;border-color:#61b879}.metric.key .value{font-size:23px}
+    .metric.updated{animation:resultPulse .55s ease}@keyframes resultPulse{0%{transform:scale(1)}45%{transform:scale(1.025)}100%{transform:scale(1)}}
+    @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+    .notice{margin-top:10px;padding:11px 14px;border-radius:10px;font-size:14px;line-height:1.45;border-left:5px solid}
+    .notice.ok{background:#e9f6ed;color:var(--ok);border-color:var(--ok)}.notice.warn{background:#fff4d6;color:var(--warn);border-color:var(--warn)}.notice.danger{background:#fdecea;color:var(--danger);border-color:var(--danger)}
+    .section-note{font-size:13px;color:var(--muted);margin:-2px 0 12px;line-height:1.45}
+    .footer{text-align:center;color:var(--muted);font-size:12px;margin-top:18px;line-height:1.6}
+    table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+    th,td{border:1px solid var(--border);padding:7px 9px;text-align:right}th{background:#eef4fb;font-weight:800;text-align:center}td:first-child,th:first-child{text-align:left}
+    td.j-ok{color:var(--ok);font-weight:800}td.j-warn{color:var(--warn);font-weight:800}td.j-danger{color:var(--danger);font-weight:800}
+    .sched-empty{color:var(--muted);font-size:13px;margin-top:10px}
+    .del{background:#fdecea;color:var(--danger);border:0;border-radius:7px;padding:4px 9px;font-weight:800;cursor:pointer}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}.results{grid-template-columns:repeat(2,1fr)}.meta{grid-template-columns:repeat(2,1fr)}.keybar{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:560px){.form-grid,.results,.meta{grid-template-columns:1fr}.actions{width:100%}.actions .btn{flex:1}
+      [role=tab]{padding:10px 12px;font-size:13px}.keybar .kv{font-size:15px}}
+    @media print{
+      *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      body{background:#fff;color:#000;font-size:11px}
+      header{background:#fff!important;color:#000!important;border-bottom:2px solid #000;padding:8px 0}
+      h1,h2,.subtitle,.metric .label,.metric .value,.metric .unit,.section-note,.footer,td,th,.grp{color:#000!important}
+      .num{background:#000!important;color:#fff!important}
+      .keybar{background:#fff!important;color:#000!important;border:1px solid #000!important;box-shadow:none;position:static;border-radius:0}
+      .keybar .kl,.keybar .kv,.keybar .kv small{color:#000!important;opacity:1}
+      .card,.meta,.result-card,.metric{background:#fff!important;border:1px solid #000!important;box-shadow:none;break-inside:avoid}
+      .card.c1,.card.c2,.card.c3,.card.c4,.card.c5,.card.c6{border-top:1px solid #000!important;border-left:3px solid #000!important;background:#fff!important}
+      .card h2{border-bottom:1px solid #000!important}
+      .grp::before{background:#000!important}
+      .grp{border-bottom:1px solid #000!important}
+      input,select{background:#fff!important;border:1px solid #000!important;color:#000!important;padding:4px 6px}
+      input::placeholder{color:#000!important}
+      input:placeholder-shown{border-style:dashed!important}
+      .notice{background:#fff!important;color:#000!important;border:1px solid #000!important}
+      .field label::after,.metric .label::after{display:none}
+      .btn,.actions,.del,#schedActions,.tabwrap,.legend{display:none!important}
+      .panel{border-top:0;padding-top:0}
+      main{max-width:none;margin:0;padding:0}
+      .grid{grid-template-columns:1fr 1fr}.results{grid-template-columns:repeat(4,1fr)}
+      th{background:#fff!important}
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div><h1 data-i18n="title">Tính chọn AHU</h1><div class="subtitle" data-i18n="subtitle">Tính từ tải lạnh, hoặc từ lưu lượng và công suất đã biết</div></div>
+    <div class="actions">
+      <button class="btn btn-light" id="langBtn">EN</button>
+      <button class="btn btn-light" id="installBtn" hidden data-i18n="install">Cài ứng dụng</button>
+      <button class="btn btn-light" id="printBtn" data-i18n="print">In / PDF</button>
+    </div>
+  </div>
+</header>
+<main>
+  <div class="meta">
+    <div class="field"><label for="pjName" data-i18n="pjName">Dự án</label><input id="pjName" type="text" placeholder="—"></div>
+    <div class="field"><label for="ahuTag" data-i18n="ahuTag">Ký hiệu AHU</label><input id="ahuTag" type="text" placeholder="AHU-1-1"></div>
+    <div class="field"><label for="pjEng" data-i18n="pjEng">Người tính</label><input id="pjEng" type="text" placeholder="—"></div>
+    <div class="field"><label for="pjDate" data-i18n="pjDate">Ngày</label><input id="pjDate" type="date"></div>
+  </div>
+
+  <div class="tabwrap">
+    <div class="tabs" role="tablist" aria-label="Chế độ tính">
+      <button role="tab" id="tab-load"  aria-controls="panel-load"  aria-selected="true"  data-tab="load"><span class="tnum">A</span><span data-i18n="tabLoad">Từ tải lạnh</span></button>
+      <button role="tab" id="tab-known" aria-controls="panel-known" aria-selected="false" data-tab="known" tabindex="-1"><span class="tnum">B</span><span data-i18n="tabKnown">Từ lưu lượng đã biết</span></button>
+      <button role="tab" id="tab-sched" aria-controls="panel-sched" aria-selected="false" data-tab="sched" tabindex="-1"><span class="tnum">Σ</span><span data-i18n="tabSched">Bảng tổng hợp</span><span class="cnt" id="schedCount">0</span></button>
+    </div>
+    <div class="tabtool">
+      <label for="flowRef" data-i18n="flowRef">Quy chiếu lưu lượng</label>
+      <select id="flowRef">
+        <option value="std" data-i18n="flowStd">ρ = 1.2 kg/m³ (tiêu chuẩn)</option>
+        <option value="act" data-i18n="flowAct">Khối lượng riêng thực tế</option>
+      </select>
+    </div>
+  </div>
+  <div class="legend">
+    <span class="lg-sug"></span><span data-i18n="lgSuggest">Đỏ nét đứt = giá trị gợi ý, app vẫn dùng để tính</span>
+    <span class="lg-own"></span><span data-i18n="lgOwn">Đen = số anh đã nhập</span>
+    <span class="lg-count" id="defCount"></span>
+  </div>
+  <select id="calcMode" hidden aria-hidden="true"><option value="load"></option><option value="known"></option></select>
+
+  <div class="panel" id="panel-load" role="tabpanel" aria-labelledby="tab-load">
+    <div class="keybar" id="keybar-load">
+      <div class="k"><div class="kl" data-i18n="kbAir">Lưu lượng gió</div><div class="kv" id="kb1">—</div></div>
+      <div class="k"><div class="kl" data-i18n="kbCoil">Công suất coil</div><div class="kv" id="kb2">—</div></div>
+      <div class="k"><div class="kl" data-i18n="kbLat">Nhiệt độ ra coil</div><div class="kv" id="kb3">—</div></div>
+      <div class="k"><div class="kl" data-i18n="kbWater">Lưu lượng nước</div><div class="kv" id="kb4">—</div></div>
+      <div class="k"><div class="kl" data-i18n="kbSize">Mặt coil L × H</div><div class="kv" id="kb5">—</div></div>
+    </div>
+    <div class="grid" id="mount-load"></div>
+  </div>
+
+  <div class="panel" id="panel-known" role="tabpanel" aria-labelledby="tab-known" hidden>
+    <div class="keybar" id="keybar-known">
+      <div class="k"><div class="kl" data-i18n="kbAir">Lưu lượng gió</div><div class="kv" id="kb1b">—</div></div>
+      <div class="k"><div class="kl" data-i18n="kbCoil">Công suất coil</div><div class="kv" id="kb2b">—</div></div>
+      <div class="k"><div class="kl" data-i18n="kbLat">Nhiệt độ ra coil</div><div class="kv" id="kb3b">—</div></div>
+      <div class="k"><div class="kl" data-i18n="kbWater">Lưu lượng nước</div><div class="kv" id="kb4b">—</div></div>
+      <div class="k"><div class="kl" data-i18n="kbSize">Mặt coil L × H</div><div class="kv" id="kb5b">—</div></div>
+    </div>
+    <div class="grid" id="mount-known"></div>
+  </div>
+
+  <div class="panel" id="panel-sched" role="tabpanel" aria-labelledby="tab-sched" hidden>
+    <section class="card c6">
+      <h2 data-i18n="schedule">Bảng tổng hợp AHU</h2>
+      <p class="section-note" data-i18n="scheduleNote">Mỗi lần bấm “Thêm vào bảng AHU” ở tab A hoặc B sẽ lưu một dòng vào đây.</p>
+      <div id="schedBody"></div>
+      <div id="schedActions" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
+        <button class="btn btn-ghost" id="csvBtn" data-i18n="exportCsv">Xuất CSV</button>
+        <button class="btn btn-outline" id="clearSchedBtn" data-i18n="clearSched">Xóa bảng</button>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ card pool: moved into the active panel by mountCards() ============ -->
+  <div id="pool" hidden>
+
+    <section class="card c1" id="cardLoad">
+      <h2><span class="num">1</span><span data-i18n="block1">Nhập tải lạnh</span></h2>
+      <p class="section-note" data-i18n="block1note">Nhập tải lạnh đã biết. Chọn tổng tải + SHR hoặc nhập riêng tải hiện và tải ẩn.</p>
+      <div class="form-grid">
+        <div class="field full"><label for="loadMode" data-i18n="loadMode">Phương pháp nhập tải</label><select id="loadMode"><option value="total" data-i18n="modeTotal">Tổng tải + SHR</option><option value="split" data-i18n="modeSplit">Tải hiện + tải ẩn</option></select></div>
+        <div class="field"><label for="loadUnit" data-i18n="loadUnit">Đơn vị công suất</label><select id="loadUnit"><option value="kW">kW</option><option value="RT">RT</option><option value="BTUh">BTU/h</option></select></div>
+        <div class="field"><label for="safety" data-i18n="safety">Hệ số dự phòng</label><input id="safety" type="number" min="0" max="30" step="1" list="dl_safety" placeholder="10"><datalist id="dl_safety"><option>0</option><option>5</option><option>10</option><option>15</option><option>20</option></datalist><small data-i18n="safetyNote">% cộng thêm vào tải phòng</small></div>
+        <div class="field" id="totalWrap"><label for="totalLoad" data-i18n="totalLoad">Tổng tải lạnh</label><input id="totalLoad" type="number" min="0" step="0.1" placeholder="100"><small data-i18n="beforeSafety">Trước khi cộng dự phòng</small></div>
+        <div class="field" id="shrWrap"><label for="shr">SHR</label><input id="shr" type="number" min="0.5" max="1" step="0.01" list="dl_shr" placeholder="0.80"><datalist id="dl_shr"><option>0.65</option><option>0.70</option><option>0.75</option><option>0.80</option><option>0.85</option><option>0.90</option></datalist></div>
+        <div class="field" id="sensWrap" hidden><label for="sensLoad" data-i18n="sensibleLoad">Tải hiện</label><input id="sensLoad" type="number" min="0" step="0.1" placeholder="80"></div>
+        <div class="field" id="latWrap" hidden><label for="latLoad" data-i18n="latentLoad">Tải ẩn</label><input id="latLoad" type="number" min="0" step="0.1" placeholder="20"></div>
+      </div>
+    </section>
+
+    <section class="card c2" id="cardAir">
+      <h2><span class="num">2</span><span data-i18n="block2">Điều kiện không khí</span></h2>
+      <p class="section-note" data-i18n="block2note">Mọi ô đều nhập tự do; danh sách gợi ý chỉ là giá trị thiết kế thường dùng. Độ ẩm gió cấp được giải ra từ tải ẩn, không nhập tay.</p>
+      <div class="form-grid">
+        <div id="roomFields" class="full form-grid">
+          <div class="field"><label for="roomDB" data-i18n="roomDB">Nhiệt độ khô trong phòng (°C)</label><input id="roomDB" type="number" step="0.1" list="dl_rdb" placeholder="24"><datalist id="dl_rdb"><option>22</option><option>24</option><option>25</option><option>26</option></datalist></div>
+          <div class="field"><label for="roomRH" data-i18n="roomRH">Độ ẩm tương đối trong phòng (%)</label><input id="roomRH" type="number" min="20" max="95" step="1" list="dl_rrh" placeholder="55"><datalist id="dl_rrh"><option>45</option><option>50</option><option>55</option><option>60</option></datalist></div>
+          <div class="field"><label for="supplyDB" data-i18n="supplyDB">Nhiệt độ khô gió cấp (°C)</label><input id="supplyDB" type="number" step="0.1" list="dl_sdb" placeholder="15"><datalist id="dl_sdb"><option>12</option><option>13</option><option>14</option><option>15</option><option>16</option><option>18</option></datalist><small data-i18n="supplyNote">Sau quạt (gió vào phòng)</small></div>
+          <div class="field"><label for="systemType" data-i18n="systemType">Loại hệ thống gió</label><select id="systemType"><option value="recirc" data-i18n="recirc">AHU tuần hoàn</option><option value="mixed" selected data-i18n="mixed">AHU gió hỗn hợp</option><option value="oa" data-i18n="oa">100% gió tươi</option></select></div>
+          <div class="field"><label for="oaPercent" data-i18n="oaPercent">Tỷ lệ gió tươi (%)</label><input id="oaPercent" type="number" min="0" max="100" step="1" list="dl_oa" placeholder="10"><datalist id="dl_oa"><option>10</option><option>15</option><option>20</option><option>30</option><option>50</option></datalist></div>
+          <div class="field"><label for="outdoorDB" data-i18n="outdoorDB">Nhiệt độ khô outdoor (°C)</label><input id="outdoorDB" type="number" step="0.1" list="dl_odb" placeholder="35"><datalist id="dl_odb"><option>32</option><option>34</option><option>35</option><option>36</option><option>37</option></datalist></div>
+          <div class="field"><label for="outdoorWB" data-i18n="outdoorWB">Nhiệt độ ướt outdoor (°C)</label><input id="outdoorWB" type="number" step="0.1" list="dl_owb" placeholder="27.5"><datalist id="dl_owb"><option>26.0</option><option>27.0</option><option>27.5</option><option>28.0</option></datalist><small data-i18n="wbNote">QCVN 02:2022/BXD — miền Nam ≈ 35 / 27.5</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card c1" id="cardKnown">
+      <h2><span class="num">1</span><span data-i18n="blockK">Lưu lượng và công suất đã biết</span></h2>
+      <p class="section-note" data-i18n="blockKnote">Dùng khi đã có lưu lượng và công suất — ví dụ kiểm tra lại một bản chào. Không khí vào coil nhập theo DB/WB.</p>
+      <div class="form-grid">
+        <div class="field"><label for="kSupply" data-i18n="kSupply">Lưu lượng gió cấp (CMH)</label><input id="kSupply" type="number" min="0" step="10" placeholder="13600"></div>
+        <div class="field"><label for="kFresh" data-i18n="kFresh">Lưu lượng gió tươi (CMH)</label><input id="kFresh" type="number" min="0" step="10" placeholder="13600"></div>
+        <div class="field"><label for="kDuty" data-i18n="kDuty">Công suất lạnh yêu cầu (kW)</label><input id="kDuty" type="number" min="0" step="0.1" placeholder="174"><small data-i18n="kDutyNote">Dùng để giải trạng thái gió ra coil</small></div>
+        <div class="field"><label for="kOutMode" data-i18n="kOutMode">Trạng thái gió ra coil</label><select id="kOutMode"><option value="solve" data-i18n="kSolve">Giải từ công suất yêu cầu</option><option value="given" data-i18n="kGiven">Nhập trực tiếp DB + WB</option></select></div>
+        <div class="field"><label for="kInDB" data-i18n="kInDB">Gió vào coil — DB (°C)</label><input id="kInDB" type="number" step="0.1" placeholder="35.8"></div>
+        <div class="field"><label for="kInWB" data-i18n="kInWB">Gió vào coil — WB (°C)</label><input id="kInWB" type="number" step="0.1" placeholder="25.9"></div>
+        <div class="field" id="kOutDBw"><label for="kOutDB" data-i18n="kOutDB">Gió ra coil — DB (°C)</label><input id="kOutDB" type="number" step="0.1" placeholder="14.66"></div>
+        <div class="field" id="kOutWBw"><label for="kOutWB" data-i18n="kOutWB">Gió ra coil — WB (°C)</label><input id="kOutWB" type="number" step="0.1" placeholder="14.29"></div>
+        <div class="field" id="kOutRHw" hidden><label for="kOutRH" data-i18n="kOutRH">Độ ẩm gió ra coil giả định (%)</label><input id="kOutRH" type="number" min="80" max="99" step="1" list="dl_orh" placeholder="95"><datalist id="dl_orh"><option>90</option><option>93</option><option>95</option><option>97</option></datalist><small data-i18n="kOutRHnote">Coil ướt thực tế thường 90–95%</small></div>
+      </div>
+    </section>
+
+    <section class="card c3" id="cardWater">
+      <h2><span class="num" data-n-load="3" data-n-known="2">3</span><span data-i18n="block3">Phía nước</span></h2>
+      <p class="section-note" data-i18n="block3note">Lưu lượng nước tính từ công suất coil và chênh nhiệt độ nước. Đường kính ống chọn theo đường kính trong thực tế.</p>
+      <div class="form-grid">
+        <div class="field"><label for="fluid" data-i18n="fluid">Lưu chất</label><select id="fluid"><option value="water" data-i18n="water">Nước</option><option value="eg" data-i18n="eg">Ethylene glycol</option><option value="pg" data-i18n="pg">Propylene glycol</option></select></div>
+        <div class="field"><label for="glycol" data-i18n="glycol">Nồng độ glycol (%)</label><select id="glycol"><option value="0">0%</option><option value="20">20%</option><option value="30">30%</option><option value="40">40%</option><option value="50">50%</option></select></div>
+        <div class="field"><label for="chws" data-i18n="chws">Nhiệt độ nước cấp CHWS (°C)</label><input id="chws" type="number" step="0.1" list="dl_chws" placeholder="7"><datalist id="dl_chws"><option>5</option><option>6</option><option>7</option><option>8</option><option>10</option></datalist></div>
+        <div class="field"><label for="chwr" data-i18n="chwr">Nhiệt độ nước hồi CHWR (°C)</label><input id="chwr" type="number" step="0.1" list="dl_chwr" placeholder="12"><datalist id="dl_chwr"><option>11</option><option>12</option><option>13</option><option>15</option><option>16.1</option></datalist></div>
+        <div class="field"><label for="pipeVel" data-i18n="pipeVel">Vận tốc ống thiết kế (m/s)</label><input id="pipeVel" type="number" min="0.6" max="3" step="0.1" list="dl_pv" placeholder="2.0"><datalist id="dl_pv"><option>1.5</option><option>1.8</option><option>2.0</option><option>2.4</option></datalist></div>
+        <div class="field" id="basisWrap"><label for="coilBasis" data-i18n="coilBasis">Cơ sở chọn công suất coil</label><select id="coilBasis"><option value="air" selected data-i18n="useAirCapacity">Dùng công suất tính từ phía gió</option><option value="load" data-i18n="useDesignLoad">Dùng tải lạnh thiết kế</option></select></div>
+      </div>
+    </section>
+
+    <section class="card c4" id="cardCoil">
+      <h2><span class="num" data-n-load="4" data-n-known="3">4</span><span data-i18n="block4">Cooling coil</span></h2>
+      <p class="section-note" id="coilNote" data-i18n="block4note">Diện tích mặt coil theo vận tốc mặt. Số hàng, số fin và tổn thất áp cuối cùng phải do hãng xác nhận.</p>
+      <div class="form-grid">
+        <div class="field full" id="geoModeWrap"><label for="geoMode" data-i18n="geoMode">Cách xác định mặt coil</label><select id="geoMode">
+          <option value="vel" data-i18n="geoVel">Từ vận tốc mặt mong muốn</option>
+          <option value="dim" data-i18n="geoDim">Từ kích thước H × L có sẵn</option>
+        </select></div>
+        <div class="field" id="fvWrap"><label for="faceVel" data-i18n="faceVel">Vận tốc qua mặt coil (m/s)</label><input id="faceVel" type="number" min="1" max="4" step="0.1" list="dl_fv" placeholder="2.2"><datalist id="dl_fv"><option>1.8</option><option>2.0</option><option>2.2</option><option>2.5</option></datalist></div>
+        <div class="field" id="arWrap"><label for="aspect" data-i18n="aspect">Tỷ lệ mặt coil R:C</label><select id="aspect"><option value="1">1.0 : 1</option><option value="1.25" selected>1.25 : 1</option><option value="1.5">1.5 : 1</option><option value="2">2.0 : 1</option></select></div>
+        <div class="field" id="coilHw" hidden><label for="coilH" data-i18n="coilH">Chiều cao coil H (mm)</label><input id="coilH" type="number" min="100" step="0.1" placeholder="1066.8"></div>
+        <div class="field" id="coilLw" hidden><label for="coilL" data-i18n="coilL">Chiều dài coil L (mm)</label><input id="coilL" type="number" min="100" step="0.1" placeholder="1420"></div>
+        <div class="field"><label for="rows" data-i18n="rows">Số hàng coil (Row)</label><input id="rows" type="number" min="2" max="12" step="1" list="dl_rows" placeholder="6"><datalist id="dl_rows"><option>4</option><option>6</option><option>8</option><option>10</option></datalist></div>
+        <div class="field"><label for="fpi" data-i18n="fpi">Mật độ fin (FPI)</label><input id="fpi" type="number" min="6" max="16" step="1" list="dl_fpi" placeholder="10"><datalist id="dl_fpi"><option>8</option><option>10</option><option>11</option><option>12</option><option>14</option></datalist></div>
+      </div>
+    </section>
+
+    <section class="card c5" id="cardFan">
+      <h2><span class="num" data-n-load="5" data-n-known="4">5</span><span data-i18n="block6">Quạt và thông gió</span></h2>
+      <p class="section-note" data-i18n="block6note">Cột áp quạt dùng để tính nhiệt quạt vào gió và công suất trục. Số người dùng để kiểm tra gió tươi tối thiểu.</p>
+      <div class="form-grid">
+        <div class="field"><label for="fanEsp" data-i18n="fanEsp">Cột áp quạt TSP (Pa)</label><input id="fanEsp" type="number" min="0" step="10" list="dl_esp" placeholder="500"><datalist id="dl_esp"><option>300</option><option>500</option><option>700</option><option>900</option><option>1100</option></datalist></div>
+        <div class="field"><label for="fanEff" data-i18n="fanEff">Hiệu suất quạt tổng (%)</label><input id="fanEff" type="number" min="30" max="90" step="1" list="dl_eff" placeholder="60"><datalist id="dl_eff"><option>50</option><option>55</option><option>60</option><option>65</option><option>70</option></datalist></div>
+        <div class="field"><label for="persons" data-i18n="persons">Số người trong vùng phục vụ</label><input id="persons" type="number" min="0" step="1" placeholder="0"><small data-i18n="personsNote">0 = bỏ qua kiểm tra gió tươi tối thiểu</small></div>
+        <div class="field"><label for="lps" data-i18n="lps">Gió tươi / người (L/s)</label><input id="lps" type="number" min="0" step="0.5" list="dl_lps" placeholder="10"><datalist id="dl_lps"><option>7.5</option><option>8.5</option><option>10</option><option>12.5</option></datalist><small data-i18n="lpsNote">TCVN 5687:2024 / ASHRAE 62.1</small></div>
+      </div>
+    </section>
+
+    <section class="card result-card full" id="cardResults" style="grid-column:1/-1">
+      <h2 data-i18n="results">Kết quả tính toán</h2>
+      <div id="messages"></div>
+      <div class="results" style="margin-top:12px">
+        <div class="grp g-load" data-i18n="grpLoad">Công suất và lưu lượng</div>
+        <div class="metric"><div class="label" id="lbTotal" data-i18n="designTotal">Tổng tải thiết kế</div><div class="value" id="rTotal">—</div></div>
+        <div class="metric"><div class="label" id="lbSens" data-i18n="designSens">Tải hiện thiết kế</div><div class="value" id="rSens">—</div></div>
+        <div class="metric"><div class="label" id="lbLat" data-i18n="designLat">Tải ẩn thiết kế</div><div class="value" id="rLat">—</div></div>
+        <div class="metric"><div class="label">SHR</div><div class="value" id="rShr">—</div></div>
+        <div class="metric"><div class="label" data-i18n="airflow">Lưu lượng gió cấp</div><div class="value" id="rAir">—</div></div>
+        <div class="metric"><div class="label" data-i18n="oaFlow">Lưu lượng gió tươi</div><div class="value" id="rOA">—</div></div>
+        <div class="metric"><div class="label" data-i18n="massFlow">Lưu lượng khối lượng</div><div class="value" id="rMass">—</div></div>
+        <div class="metric"><div class="label" data-i18n="oaMin">Gió tươi tối thiểu theo người</div><div class="value" id="rOAmin">—</div></div>
+
+        <div class="grp g-air" data-i18n="grpAir">Trạng thái không khí</div>
+        <div class="metric"><div class="label" id="lbSupply" data-i18n="supplyState">Trạng thái gió cấp yêu cầu</div><div class="value" id="rSupply">—</div></div>
+        <div class="metric"><div class="label" data-i18n="enteringAir">Không khí vào coil</div><div class="value" id="rEntering">—</div></div>
+        <div class="metric"><div class="label" data-i18n="leavingAir">Không khí ra coil (LAT)</div><div class="value" id="rLeaving">—</div></div>
+        <div class="metric"><div class="label" data-i18n="fanHeat">Nhiệt quạt vào gió</div><div class="value" id="rFanHeat">—</div></div>
+
+        <div class="grp g-coil" data-i18n="grpCoil">Coil</div>
+        <div class="metric"><div class="label" data-i18n="coilCapacity">Công suất coil</div><div class="value" id="rCoilQ">—</div></div>
+        <div class="metric"><div class="label" data-i18n="coilShr">SHR của coil</div><div class="value" id="rCoilShr">—</div></div>
+        <div class="metric"><div class="label" data-i18n="adp">ADP (điểm sương thiết bị)</div><div class="value" id="rAdp">—</div></div>
+        <div class="metric"><div class="label" data-i18n="bf">Hệ số bypass / tiếp xúc</div><div class="value" id="rBf">—</div></div>
+        <div class="metric"><div class="label" data-i18n="faceArea">Diện tích mặt coil</div><div class="value" id="rFace">—</div></div>
+        <div class="metric"><div class="label" data-i18n="coilSize">Kích thước mặt coil L × H</div><div class="value" id="rSize">—</div></div>
+        <div class="metric"><div class="label" data-i18n="faceVelOut">Vận tốc qua mặt coil</div><div class="value" id="rFaceVel">—</div></div>
+        <div class="metric"><div class="label" data-i18n="filterVel">Vận tốc qua filter</div><div class="value" id="rFilterV">—</div></div>
+
+        <div class="grp g-water" data-i18n="grpWater">Nước và nước ngưng</div>
+        <div class="metric"><div class="label" data-i18n="waterFlow">Lưu lượng nước lạnh</div><div class="value" id="rWater">—</div></div>
+        <div class="metric"><div class="label" data-i18n="waterFlowLs">Lưu lượng nước</div><div class="value" id="rWaterLs">—</div></div>
+        <div class="metric"><div class="label" data-i18n="pipeDN">Ống nước coil</div><div class="value" id="rPipe">—</div></div>
+        <div class="metric"><div class="label" data-i18n="lmtd">LMTD ngược chiều</div><div class="value" id="rLmtd">—</div></div>
+        <div class="metric"><div class="label" data-i18n="condensate">Nước ngưng</div><div class="value" id="rCond">—</div></div>
+        <div class="metric"><div class="label" data-i18n="drainDN">Ống thoát nước ngưng</div><div class="value" id="rDrain">—</div></div>
+        <div class="metric est"><div class="label" data-i18n="airDp">Tổn thất áp gió qua coil</div><div class="value" id="rAirDp">—</div></div>
+        <div class="metric est"><div class="label" data-i18n="fanShaft">Công suất trục quạt / motor tối thiểu</div><div class="value" id="rShaft">—</div></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn btn-primary" id="calcBtn" data-i18n="calculate">Tính toán</button>
+        <button class="btn btn-ghost" id="addBtn" data-i18n="addToSched">Thêm vào bảng AHU</button>
+        <button class="btn btn-outline" id="resetBtn" data-i18n="reset">Khôi phục mặc định</button>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="footer">
+    <div data-i18n="disclaimer">Kết quả mang tính sơ bộ cho giai đoạn thiết kế. Lựa chọn coil cuối cùng, tổn thất áp nước và đường đặc tính quạt phải do hãng AHU xác nhận.</div>
+    <div>AHU Sizing Calculator v1.6 · Developed by Trọng Ngọc</div>
+  </div>
+</main>
+<script>
+
+const $=id=>document.getElementById(id);
+const dict={
+ vi:{title:'Tính chọn AHU',subtitle:'Tính từ tải lạnh, hoặc từ lưu lượng và công suất đã biết',install:'Cài ứng dụng',print:'In / PDF',pjName:'Dự án',ahuTag:'Ký hiệu AHU',pjEng:'Người tính',pjDate:'Ngày',flowRef:'Quy chiếu lưu lượng',flowStd:'Không khí tiêu chuẩn ρ = 1.2 kg/m³',flowAct:'Khối lượng riêng thực tế',flowRefNote:'Catalogue AHU khu vực thường ghi CMH theo ρ = 1.2',block1:'Nhập tải lạnh',block1note:'Nhập tải lạnh đã biết. Chọn tổng tải + SHR hoặc nhập riêng tải hiện và tải ẩn.',loadMode:'Phương pháp nhập tải',modeTotal:'Tổng tải + SHR',modeSplit:'Tải hiện + tải ẩn',loadUnit:'Đơn vị công suất',safety:'Hệ số dự phòng',safetyNote:'% cộng thêm vào tải phòng',totalLoad:'Tổng tải lạnh',beforeSafety:'Trước khi cộng dự phòng',sensibleLoad:'Tải hiện',latentLoad:'Tải ẩn',blockK:'Lưu lượng và công suất đã biết',blockKnote:'Dùng khi đã có lưu lượng và công suất — ví dụ kiểm tra lại một bản chào. Không khí vào coil nhập theo DB/WB.',kSupply:'Lưu lượng gió cấp (CMH)',kFresh:'Lưu lượng gió tươi (CMH)',kDuty:'Công suất lạnh yêu cầu (kW)',kDutyNote:'Dùng để giải trạng thái gió ra coil',kOutMode:'Trạng thái gió ra coil',kSolve:'Giải từ công suất yêu cầu',kGiven:'Nhập trực tiếp DB + WB',kInDB:'Gió vào coil — DB (°C)',kInWB:'Gió vào coil — WB (°C)',kOutDB:'Gió ra coil — DB (°C)',kOutWB:'Gió ra coil — WB (°C)',kOutRH:'Độ ẩm gió ra coil giả định (%)',kOutRHnote:'Coil ướt thực tế thường 90–95%',block2:'Điều kiện không khí',block2note:'Mọi ô đều nhập tự do; danh sách gợi ý chỉ là giá trị thiết kế thường dùng. Độ ẩm gió cấp KHÔNG nhập tay — được giải ra từ tải ẩn.',block2noteK:'Ở chế độ B, trạng thái gió vào coil lấy trực tiếp từ khối 1. Các ô dưới đây dùng để kiểm tra thông gió và quạt.',roomDB:'Nhiệt độ khô trong phòng (°C)',roomRH:'Độ ẩm tương đối trong phòng (%)',supplyDB:'Nhiệt độ khô gió cấp (°C)',supplyNote:'Sau quạt (gió vào phòng)',systemType:'Loại hệ thống gió',recirc:'AHU tuần hoàn',mixed:'AHU gió hỗn hợp',oa:'100% gió tươi',oaPercent:'Tỷ lệ gió tươi (%)',persons:'Số người trong vùng phục vụ',personsNote:'0 = bỏ qua kiểm tra gió tươi tối thiểu',lps:'Gió tươi / người (L/s)',lpsNote:'TCVN 5687:2024 / ASHRAE 62.1',fanEsp:'Cột áp quạt TSP (Pa)',fanEff:'Hiệu suất quạt tổng (%)',fanEffNote:'Dùng để tính nhiệt quạt và công suất trục',outdoorDB:'Nhiệt độ khô outdoor (°C)',outdoorWB:'Nhiệt độ ướt outdoor (°C)',wbNote:'QCVN 02:2022/BXD — miền Nam ≈ 35 / 27.5',block3:'Phía nước',block3note:'Lưu lượng nước tính từ công suất coil và chênh nhiệt độ nước. Đường kính ống chọn theo đường kính trong thực tế.',fluid:'Lưu chất',water:'Nước',eg:'Ethylene glycol',pg:'Propylene glycol',glycol:'Nồng độ glycol (%)',chws:'Nhiệt độ nước cấp CHWS (°C)',chwr:'Nhiệt độ nước hồi CHWR (°C)',pipeVel:'Vận tốc ống thiết kế (m/s)',coilBasis:'Cơ sở chọn công suất coil',useDesignLoad:'Dùng tải lạnh thiết kế',useAirCapacity:'Dùng công suất tính từ phía gió',block4:'Cooling coil',block4note:'Diện tích mặt coil theo vận tốc mặt. Số hàng, số fin và tổn thất áp cuối cùng phải do hãng xác nhận.',block4noteK:'Nhập kích thước coil có sẵn để kiểm tra vận tốc mặt, hoặc để app đề xuất kích thước từ vận tốc mong muốn.',geoMode:'Cách xác định mặt coil',geoVel:'Từ vận tốc mặt mong muốn',geoDim:'Từ kích thước H × L có sẵn',faceVel:'Vận tốc qua mặt coil (m/s)',aspect:'Tỷ lệ mặt coil R:C',coilH:'Chiều cao coil H (mm)',coilL:'Chiều dài coil L (mm)',rows:'Số hàng coil (Row)',fpi:'Mật độ fin (FPI)',results:'Kết quả tính toán',designTotal:'Tổng tải thiết kế',designSens:'Tải hiện thiết kế',designLat:'Tải ẩn thiết kế',coilTotalK:'Công suất coil (tính)',coilSensK:'Công suất hiện (tính)',coilLatK:'Công suất ẩn (tính)',airflow:'Lưu lượng gió cấp',oaFlow:'Lưu lượng gió tươi',massFlow:'Lưu lượng khối lượng',oaMin:'Gió tươi tối thiểu theo người',supplyState:'Trạng thái gió cấp yêu cầu',supplyStateK:'Gió cấp vào phòng (sau quạt)',enteringAir:'Không khí vào coil',leavingAir:'Không khí ra coil (LAT)',fanHeat:'Nhiệt quạt vào gió',coilCapacity:'Công suất coil',coilShr:'SHR của coil',adp:'ADP (điểm sương thiết bị)',bf:'Hệ số bypass / tiếp xúc',waterFlow:'Lưu lượng nước lạnh',waterFlowLs:'Lưu lượng nước',pipeDN:'Ống nước coil',lmtd:'LMTD ngược chiều',faceArea:'Diện tích mặt coil',coilSize:'Kích thước mặt coil L × H',faceVelOut:'Vận tốc qua mặt coil',filterVel:'Vận tốc qua filter',condensate:'Nước ngưng',drainDN:'Ống thoát nước ngưng',airDp:'Tổn thất áp gió qua coil',fanShaft:'Công suất trục quạt / motor tối thiểu',calculate:'Tính toán',addToSched:'Thêm vào bảng AHU',reset:'Khôi phục mặc định',tabLoad:'Từ tải lạnh',tabKnown:'Từ lưu lượng đã biết',tabSched:'Bảng tổng hợp',kbAir:'Lưu lượng gió',kbCoil:'Công suất coil',kbWater:'Lưu lượng nước',kbSize:'Mặt coil L × H',kbLat:'Nhiệt độ ra coil',lgSuggest:'Đỏ nét đứt = giá trị gợi ý, app vẫn dùng để tính',lgOwn:'Đen = số anh đã nhập',lgCount:'ô đang dùng gợi ý',grpLoad:'Công suất và lưu lượng',grpAir:'Trạng thái không khí',grpCoil:'Coil',grpWater:'Nước và nước ngưng',block6:'Quạt và thông gió',block6note:'Cột áp quạt dùng để tính nhiệt quạt vào gió và công suất trục. Số người dùng để kiểm tra gió tươi tối thiểu.',schedule:'Bảng tổng hợp AHU',scheduleNote:'Mỗi lần bấm “Thêm vào bảng AHU” ở tab A hoặc B sẽ lưu một dòng vào đây.',exportCsv:'Xuất CSV',clearSched:'Xóa bảng',disclaimer:'Kết quả mang tính sơ bộ cho giai đoạn thiết kế. Lựa chọn coil cuối cùng, tổn thất áp nước và đường đặc tính quạt phải do hãng AHU xác nhận.',thTag:'AHU',thLoad:'Công suất (kW)',thAir:'Gió (m³/h)',thCoil:'Coil (kW)',thWater:'Nước (m³/h)',thPipe:'Ống',thFace:'Mặt coil (mm)',thDel:'Xóa',schedEmpty:'Chưa có AHU nào trong bảng.'},
+ en:{title:'AHU Sizing Calculator',subtitle:'Size from a cooling load, or from a known airflow and capacity',install:'Install app',print:'Print / PDF',pjName:'Project',ahuTag:'AHU tag',pjEng:'Calculated by',pjDate:'Date',flowRef:'Airflow reference',flowStd:'Standard air, ρ = 1.2 kg/m³',flowAct:'Actual air density',flowRefNote:'Regional AHU catalogues normally quote CMH at ρ = 1.2',block1:'Cooling Load Input',block1note:'Enter the known load. Use total load + SHR, or enter sensible and latent loads separately.',loadMode:'Load input method',modeTotal:'Total load + SHR',modeSplit:'Sensible + latent load',loadUnit:'Capacity unit',safety:'Safety factor',safetyNote:'% added to the room load',totalLoad:'Total cooling load',beforeSafety:'Before safety factor',sensibleLoad:'Sensible load',latentLoad:'Latent load',blockK:'Known Airflow and Capacity',blockKnote:'Use this when airflow and capacity are already fixed — for example when checking a quoted selection. Coil entering air is given as DB/WB.',kSupply:'Supply air flow (CMH)',kFresh:'Fresh air flow (CMH)',kDuty:'Required cooling capacity (kW)',kDutyNote:'Used to solve the coil leaving state',kOutMode:'Coil leaving air',kSolve:'Solve from the required capacity',kGiven:'Enter DB + WB directly',kInDB:'Coil entering air — DB (°C)',kInWB:'Coil entering air — WB (°C)',kOutDB:'Coil leaving air — DB (°C)',kOutWB:'Coil leaving air — WB (°C)',kOutRH:'Assumed leaving relative humidity (%)',kOutRHnote:'A real wet coil normally leaves at 90–95%',block2:'Air Conditions',block2note:'Every field accepts free entry; the drop-down lists are only common design values. Supply-air humidity is NOT entered — it is solved from the latent load.',block2noteK:'In mode B the coil entering air comes straight from block 1. The fields below drive the ventilation and fan checks.',roomDB:'Room dry-bulb (°C)',roomRH:'Room relative humidity (%)',supplyDB:'Supply-air dry-bulb (°C)',supplyNote:'After the fan (air entering the room)',systemType:'Air system',recirc:'Recirculation AHU',mixed:'Mixed air AHU',oa:'100% outdoor air',oaPercent:'Outdoor-air percentage (%)',persons:'Occupants in served area',personsNote:'0 = skip the minimum ventilation check',lps:'Outdoor air per person (L/s)',lpsNote:'TCVN 5687:2024 / ASHRAE 62.1',fanEsp:'Fan total static pressure (Pa)',fanEff:'Overall fan efficiency (%)',fanEffNote:'Drives fan heat and shaft power',outdoorDB:'Outdoor dry-bulb (°C)',outdoorWB:'Outdoor wet-bulb (°C)',wbNote:'QCVN 02:2022/BXD — southern Vietnam ≈ 35 / 27.5',block3:'Water Side',block3note:'Water flow comes from coil capacity and water temperature difference. Pipe size uses real inside diameters.',fluid:'Fluid',water:'Water',eg:'Ethylene glycol',pg:'Propylene glycol',glycol:'Glycol concentration (%)',chws:'CHWS temperature (°C)',chwr:'CHWR temperature (°C)',pipeVel:'Design pipe velocity (m/s)',coilBasis:'Coil-capacity basis',useDesignLoad:'Use design cooling load',useAirCapacity:'Use air-side calculated capacity',block4:'Cooling Coil',block4note:'Face area follows the selected face velocity. Final rows, fin density and pressure drops must be confirmed by the manufacturer.',block4noteK:'Enter known coil dimensions to check the face velocity, or let the app propose a size from a target velocity.',geoMode:'Coil face defined by',geoVel:'Target face velocity',geoDim:'Known H × L dimensions',faceVel:'Coil face velocity (m/s)',aspect:'Coil aspect ratio W:H',coilH:'Coil height H (mm)',coilL:'Coil length L (mm)',rows:'Coil rows',fpi:'Fin density (FPI)',results:'Calculation Results',designTotal:'Design total load',designSens:'Design sensible load',designLat:'Design latent load',coilTotalK:'Coil total capacity',coilSensK:'Coil sensible capacity',coilLatK:'Coil latent capacity',airflow:'Supply airflow',oaFlow:'Outdoor airflow',massFlow:'Mass flow of dry air',oaMin:'Minimum ventilation air',supplyState:'Required supply-air state',supplyStateK:'Air entering the room (after fan)',enteringAir:'Coil entering air',leavingAir:'Coil leaving air (LAT)',fanHeat:'Fan heat gain to air',coilCapacity:'Coil capacity',coilShr:'Coil SHR',adp:'Apparatus dew point',bf:'Bypass / contact factor',waterFlow:'Chilled-water flow',waterFlowLs:'Water flow',pipeDN:'Coil water pipe',lmtd:'Counterflow LMTD',faceArea:'Coil face area',coilSize:'Coil face L × H',faceVelOut:'Coil face velocity',filterVel:'Filter face velocity',condensate:'Condensate',drainDN:'Condensate drain pipe',airDp:'Coil air-side pressure drop',fanShaft:'Fan shaft power / minimum motor',calculate:'Calculate',addToSched:'Add to AHU schedule',reset:'Reset defaults',tabLoad:'From cooling load',tabKnown:'From known airflow',tabSched:'Schedule',kbAir:'Airflow',kbCoil:'Coil capacity',kbWater:'Water flow',kbSize:'Coil face L × H',kbLat:'Off-coil temperature',lgSuggest:'Red dashed = suggested value, still used in the calculation',lgOwn:'Black = a value you entered',lgCount:'fields on suggested values',grpLoad:'Capacity and airflow',grpAir:'Air states',grpCoil:'Coil',grpWater:'Water and condensate',block6:'Fan and Ventilation',block6note:'Fan pressure drives the fan heat gain and shaft power. Occupancy drives the minimum ventilation check.',schedule:'AHU Schedule',scheduleNote:'Each “Add to AHU schedule” press in tab A or B stores one row here.',exportCsv:'Export CSV',clearSched:'Clear schedule',disclaimer:'Results are preliminary, for the design stage. Final coil selection, water-side pressure drop and fan curve must be confirmed by the AHU manufacturer.',thTag:'AHU',thLoad:'Capacity (kW)',thAir:'Air (m³/h)',thCoil:'Coil (kW)',thWater:'Water (m³/h)',thPipe:'Pipe',thFace:'Coil face (mm)',thDel:'Delete',schedEmpty:'No AHU stored yet.'}
+};
+let lang=localStorage.getItem('ahuLangV14')||'vi';
+const T=k=>(dict[lang]&&dict[lang][k])||k;
+function applyLang(){
+ document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.dataset.i18n;if(dict[lang][k])el.textContent=dict[lang][k]});
+ $('langBtn').textContent=lang==='vi'?'EN':'VI';document.documentElement.lang=lang;
+ modeLabels();renderSched();syncDefaultCount();
+}
+
+/* ---------- psychrometrics (ASHRAE Fundamentals Ch.1, sea level) ---------- */
+const P_ATM=101.325, RHO_STD=1.2;
+const psat=t=>0.61078*Math.exp(17.2694*t/(t+237.29));
+const Wsat=t=>{const pv=psat(t);return 0.62198*pv/(P_ATM-pv)};
+const WfromRH=(t,rh)=>{const pv=rh/100*psat(t);return 0.62198*pv/(P_ATM-pv)};
+const RHfromW=(t,W)=>{const pv=W*P_ATM/(0.62198+W);return Math.max(0,Math.min(100,100*pv/psat(t)))};
+const enth=(t,W)=>1.006*t+W*(2501+1.86*t);
+const TfromhW=(h,W)=>(h-W*2501)/(1.006+1.86*W);
+const cpMA=W=>1.006+1.86*W;
+const vSpec=(t,W)=>0.287042*(t+273.15)*(1+1.6078*W)/P_ATM;
+const dewPoint=W=>{const pv=Math.max(1e-6,W*P_ATM/(0.62198+W));const L=Math.log(pv/0.61078);return 237.29*L/(17.2694-L)};
+const WfromWB=(t,twb)=>{const ws=Wsat(twb);return ((2501-2.326*twb)*ws-1.006*(t-twb))/(2501+1.86*t-4.186*twb)};
+function WBfromW(t,W){let lo=-20,hi=t;for(let i=0;i<60;i++){const m=(lo+hi)/2;(WfromWB(t,m)<W)?lo=m:hi=m}return (lo+hi)/2}
+/* volumetric flow (m3/h) <-> dry-air mass flow (kg/s), per the selected reference */
+const flowStd=()=>$('flowRef').value==='std';
+const mdaFromV=(V,t,W)=>flowStd()?V*RHO_STD/3600:V/(3600*vSpec(t,W));
+const vFromMda=(m,t,W)=>flowStd()?m*3600/RHO_STD:m*3600*vSpec(t,W);
+
+/* ---------- fluid properties (approx. at 10 °C mean) ---------- */
+const GLY={eg:[[0,4.19,999.7],[20,3.90,1028],[30,3.74,1044],[40,3.56,1060],[50,3.30,1077]],
+           pg:[[0,4.19,999.7],[20,4.00,1017],[30,3.90,1026],[40,3.76,1035],[50,3.60,1043]]};
+function fluidProps(kind,g){
+ if(kind==='water')return{cp:4.190,rho:999.7,visc:1.0};
+ const t=GLY[kind];let lo=t[0],hi=t[t.length-1];
+ for(let i=0;i<t.length-1;i++){if(g>=t[i][0]&&g<=t[i+1][0]){lo=t[i];hi=t[i+1];break}}
+ const f=hi[0]===lo[0]?0:(g-lo[0])/(hi[0]-lo[0]);
+ return{cp:lo[1]+f*(hi[1]-lo[1]),rho:lo[2]+f*(hi[2]-lo[2]),visc:1+g/50*(kind==='eg'?2.6:3.4)};
+}
+/* nominal size -> real inside diameter (mm), JIS SGP / ISO medium series */
+const PIPES=[[15,16.1],[20,21.6],[25,27.6],[32,35.7],[40,41.6],[50,52.9],[65,67.9],[80,80.7],[100,105.3],[125,130.8],[150,155.2],[200,204.7],[250,254.2],[300,304.7]];
+const velIn=(m3h,id)=>(m3h/3600)/(Math.PI*Math.pow(id/1000,2)/4);
+function pickPipe(m3h,vTarget){
+ if(!Number.isFinite(m3h)||m3h<=0)return null;
+ for(const [dn,id] of PIPES){const v=velIn(m3h,id);if(v<=Math.max(vTarget,0.6))return{dn,id,v}}
+ const [dn,id]=PIPES[PIPES.length-1];return{dn,id,v:velIn(m3h,id)};
+}
+const pipeById=dn=>{const p=PIPES.find(p=>p[0]===dn);return p?p[1]:dn};
+function drainDN(kgh){if(kgh<=100)return 25;if(kgh<=300)return 32;if(kgh<=600)return 40;if(kgh<=1000)return 50;if(kgh<=2000)return 65;return 80}
+function fmt(x,d=2){return Number.isFinite(x)?x.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—'}
+const toKW=(v,u)=>u==='kW'?v:u==='RT'?v*3.51685284:v*0.00029307107;
+/* an empty field is not zero — it means "use the suggested value shown in red" */
+let BAD_FIELDS=[];
+const num=(id,def=0)=>{
+ const e=$(id);if(!e)return def;
+ const raw=e.value.trim();
+ if(raw!==''){
+   const v=Number(raw);
+   if(Number.isFinite(v))return v;
+   const lb=document.querySelector(`label[for="${id}"]`);
+   const nm=lb?lb.textContent.replace(/(INPUT|GỢI Ý)$/,'').trim():id;
+   if(!BAD_FIELDS.includes(nm))BAD_FIELDS.push(nm);
+   return def;
+ }
+ const ph=Number((e.placeholder||'').trim());
+ return Number.isFinite(ph)&&(e.placeholder||'').trim()!==''?ph:def;
+};
+const isDefault=id=>{const e=$(id);return !!e&&e.type==='number'&&e.value.trim()===''};
+/* coil air-side pressure drop, calibrated against a measured 8-row / 11 FPI / 2.49 m/s wet coil = 206 Pa */
+const AIRDP_K=18.3;
+
+['rAir','rCoilQ','rWater','rSize','rAdp'].forEach(id=>{const e=$(id);if(e&&e.parentElement)e.parentElement.classList.add('key')});
+function pulse(){document.querySelectorAll('.metric').forEach((m,i)=>{m.classList.remove('updated');void m.offsetWidth;setTimeout(()=>m.classList.add('updated'),Math.min(i*12,180))})}
+
+let LAST=null;
+function calculate(){
+ BAD_FIELDS=[];
+ const known=$('calcMode').value==='known';
+ const chws=num('chws',7),chwr=num('chwr',12),dTw=chwr-chws;
+ const esp=num('fanEsp',0),eff=Math.max(20,num('fanEff',60))/100;
+ const msg=[],vi=lang==='vi';
+
+ let total,sens,lat,mda,airflow,ts,Ws,tLAT,hLAT,te,We,Voa,oaPct,duty=NaN,tr=NaN,rhr=NaN,rhs=NaN,solveFail='';
+
+ if(!known){
+   /* ---------- Mode A: from cooling load ---------- */
+   const unit=$('loadUnit').value,sf=1+num('safety')/100;
+   if($('loadMode').value==='total'){
+     total=toKW(num('totalLoad'),unit)*sf;const shr=Math.min(1,Math.max(0.3,num('shr',0.8)));sens=total*shr;lat=total-sens;
+   }else{
+     sens=toKW(num('sensLoad'),unit)*sf;lat=toKW(num('latLoad'),unit)*sf;total=sens+lat;
+   }
+   tr=num('roomDB',24);rhr=num('roomRH',55);ts=num('supplyDB',15);
+   const dt=tr-ts,Wr=WfromRH(tr,rhr),hr=enth(tr,Wr);
+   Ws=Wr;
+   if(dt>0&&total>0){for(let i=0;i<12;i++){mda=sens/(cpMA((Wr+Ws)/2)*dt);const hs=hr-total/mda;Ws=(hs-1.006*ts)/(2501+1.86*ts)}}
+   rhs=RHfromW(ts,Ws);
+   airflow=vFromMda(mda,ts,Ws);
+   const fankW=airflow*esp/(3600*1000*eff);
+   tLAT=ts-fankW/(mda*cpMA(Ws));hLAT=enth(tLAT,Ws);
+   const type=$('systemType').value;
+   oaPct=num('oaPercent')/100;if(type==='oa')oaPct=1;if(type==='recirc')oaPct=0;
+   const to=num('outdoorDB',35),twb=num('outdoorWB',27.5);
+   const Wo=Math.max(0,WfromWB(to,twb)),ho=enth(to,Wo);
+   Voa=airflow*oaPct;
+   let mOA=Math.min(mdaFromV(Voa,to,Wo),mda);const mRA=mda-mOA;
+   We=oaPct===0?Wr:(mRA*Wr+mOA*Wo)/mda;
+   const he=oaPct===0?hr:(mRA*hr+mOA*ho)/mda;
+   te=TfromhW(he,We);
+ }else{
+   /* ---------- Mode B: known airflow + capacity ---------- */
+   airflow=num('kSupply',0);
+   Voa=Math.min(num('kFresh',0),airflow);
+   oaPct=airflow>0?Voa/airflow:0;
+   duty=num('kDuty',0);
+   te=num('kInDB',35);const twbIn=num('kInWB',26);
+   We=Math.max(0,WfromWB(te,twbIn));
+   const he=enth(te,We);
+   mda=mdaFromV(airflow,te,We);
+   if($('kOutMode').value==='given'){
+     tLAT=num('kOutDB',14);const twbOut=num('kOutWB',14);
+     Ws=Math.max(0,WfromWB(tLAT,twbOut));hLAT=enth(tLAT,Ws);
+     total=mda*(he-hLAT);
+   }else{
+     total=duty;
+     hLAT=he-(mda>0?total/mda:0);
+     const rhOut=Math.min(99,Math.max(80,num('kOutRH',95)));
+     /* find the DB whose enthalpy at the assumed leaving RH equals hLAT */
+     let lo=-15,hi=te;
+     const f=t=>enth(t,WfromRH(t,rhOut))-hLAT;
+     if(f(lo)<0&&f(hi)>0){for(let i=0;i<70;i++){const m=(lo+hi)/2;(f(m)<0)?lo=m:hi=m}tLAT=(lo+hi)/2;Ws=WfromRH(tLAT,rhOut)}
+     else{tLAT=NaN;Ws=NaN;solveFail='out'}
+     if(Number.isFinite(Ws)&&Ws>We){Ws=We;tLAT=TfromhW(hLAT,Ws)}
+   }
+   sens=Number.isFinite(tLAT)?mda*cpMA((We+Ws)/2)*(te-tLAT):NaN;
+   lat=total-sens;
+   const fankW=airflow*esp/(3600*1000*eff);
+   ts=Number.isFinite(tLAT)?tLAT+fankW/(mda*cpMA(Ws)):NaN;   /* fan adds heat downstream of the coil */
+   rhs=Number.isFinite(ts)?RHfromW(ts,Ws):NaN;
+ }
+
+ const fankW=airflow*esp/(3600*1000*eff);
+ const dtFan=mda>0?fankW/(mda*cpMA(Number.isFinite(Ws)?Ws:0.009)):NaN;
+ const shaft=fankW;                       /* air power / efficiency already applied */
+ const motorMin=shaft*1.15;
+ const coilAirQ=Number.isFinite(hLAT)?mda*(enth(te,We)-hLAT):NaN;
+ const coilSens=Number.isFinite(tLAT)?mda*cpMA((We+Ws)/2)*(te-tLAT):NaN;
+ const coilShr=coilAirQ>0?coilSens/coilAirQ:NaN;
+
+ /* --- apparatus dew point --- */
+ let adp=NaN,bf=NaN,adpApprox=false,adpWhy='';
+ if(Number.isFinite(te)&&Number.isFinite(tLAT)&&te>tLAT+0.01&&We>Ws+1e-6){
+   const lineW=t=>We+(Ws-We)*(t-te)/(tLAT-te);
+   let lo=-5,hi=tLAT;
+   const fHi=Wsat(hi)-lineW(hi),fLo=Wsat(lo)-lineW(lo);
+   if(fHi>0&&fLo<0){for(let i=0;i<70;i++){const m=(lo+hi)/2;(Wsat(m)-lineW(m)<0)?lo=m:hi=m}adp=(lo+hi)/2}
+   else if(fHi>0){adp=dewPoint(Ws);adpApprox=true}
+   if(Number.isFinite(adp)&&te>adp)bf=(tLAT-adp)/(te-adp);
+ }else if(Number.isFinite(We)&&Number.isFinite(Ws)&&We<=Ws+1e-6)adpWhy='dry';
+
+ /* --- water side --- */
+ const fl=$('fluid').value,g=fl==='water'?0:num('glycol');
+ const fp=fluidProps(fl,g);
+ const coilQ=known?(Number.isFinite(coilAirQ)?coilAirQ:duty):($('coilBasis').value==='air'?Math.max(0,coilAirQ):total);
+ const waterM3h=dTw>0?coilQ*3600/(fp.rho*fp.cp*dTw):NaN;
+ const waterLs=waterM3h/3.6;
+ const pipe=pickPipe(waterM3h,num('pipeVel',2));
+ const d1=te-chwr,d2=tLAT-chws;
+ const lmtd=(d1>0&&d2>0)?(Math.abs(d1-d2)<0.05?(d1+d2)/2:(d1-d2)/Math.log(d1/d2)):NaN;
+
+ /* --- coil geometry --- */
+ const rows=num('rows',6),fpi=num('fpi',10);
+ let face,H,L,fv;
+ if(known&&$('geoMode').value==='dim'){
+   H=num('coilH',1000)/1000;L=num('coilL',1400)/1000;face=H*L;fv=airflow/(3600*face);
+ }else{
+   fv=num('faceVel',2.2);face=airflow/(3600*fv);const ar=num('aspect',1.25);H=Math.sqrt(face/ar);L=H*ar;
+ }
+ const casA=(L+0.15)*(H+0.15),filtV=airflow/(3600*casA);
+ const cond=(Number.isFinite(We)&&Number.isFinite(Ws))?Math.max(0,mda*(We-Ws)*3600):NaN;
+ const wet=(We-Ws)>1e-4?1.30:1.0;
+ const airDp=rows*AIRDP_K*Math.pow(Math.max(fv,0.5)/2.5,1.8)*Math.pow(Math.max(fpi,4)/10,0.9)*wet;
+
+ /* --- render --- */
+ const dead=!(airflow>0)||!(total>0);
+ if(dead){adp=NaN;bf=NaN;adpApprox=false;adpWhy=''}
+ const S=(id,html)=>$(id).innerHTML=dead&&id!=='rTotal'&&id!=='rAir'?'\u2014':html;
+ S('rTotal',`${fmt(total,1)} <span class="unit">kW</span>`);S('rSens',`${fmt(sens,1)} <span class="unit">kW</span>`);
+ S('rLat',`${fmt(lat,1)} <span class="unit">kW</span>`);$('rShr').textContent=total>0?fmt(sens/total,3):'—';
+ S('rAir',`${fmt(airflow,0)} <span class="unit">m³/h</span>`);S('rOA',`${fmt(Voa,0)} <span class="unit">m³/h</span>`);
+ S('rMass',`${fmt(mda,3)} <span class="unit">kg/s ${flowStd()?'@ρ1.2':'@thực'}</span>`);
+ const persons=num('persons'),lps=num('lps',10),Vmin=persons*lps*3.6;
+ S('rOAmin',persons>0?`${fmt(Vmin,0)} <span class="unit">m³/h</span>`:'—');
+ S('rSupply',Number.isFinite(ts)?`${fmt(ts,1)}°C / ${fmt(rhs,0)}%RH`:'—');
+ S('rEntering',`${fmt(te,1)}°C / ${fmt(RHfromW(te,We),0)}%RH · WB ${fmt(WBfromW(te,We),1)}°C`);
+ S('rLeaving',Number.isFinite(tLAT)?`${fmt(tLAT,2)}°C / ${fmt(RHfromW(tLAT,Ws),0)}%RH · WB ${fmt(WBfromW(tLAT,Ws),2)}°C`:'—');
+ S('rFanHeat',`${fmt(fankW,2)} kW <span class="unit">/ +${fmt(dtFan,2)} K</span>`);
+ S('rCoilQ',`${fmt(coilAirQ,2)} <span class="unit">kW</span>`);$('rCoilShr').textContent=fmt(coilShr,3);
+ S('rAdp',Number.isFinite(adp)?`${adpApprox?'≈ ':''}${fmt(adp,2)} <span class="unit">°C</span>`:'—');
+ $('rAdp').parentElement.classList.toggle('est',adpApprox);
+ $('rBf').textContent=Number.isFinite(bf)?`${fmt(bf,3)} / ${fmt(1-bf,3)}`:'—';
+ S('rWater',`${fmt(waterM3h,2)} <span class="unit">m³/h</span>`);S('rWaterLs',`${fmt(waterLs,2)} <span class="unit">L/s</span>`);
+ S('rPipe',pipe?`DN${pipe.dn} <span class="unit">(ID ${fmt(pipe.id,1)} mm) @ ${fmt(pipe.v,2)} m/s</span>`:'—');
+ S('rLmtd',Number.isFinite(lmtd)?`${fmt(lmtd,2)} <span class="unit">K</span>`:'—');
+ S('rFace',`${fmt(face,3)} <span class="unit">m²</span>`);
+ S('rSize',`${fmt(L*1000,0)} × ${fmt(H*1000,0)} <span class="unit">mm</span>`);
+ S('rFaceVel',`${fmt(fv,2)} <span class="unit">m/s</span>`);
+ S('rFilterV',`${fmt(filtV,2)} <span class="unit">m/s</span>`);
+ S('rCond',`${fmt(cond,1)} <span class="unit">kg/h</span>`);S('rDrain',Number.isFinite(cond)?`DN${drainDN(cond)}`:'—');
+ S('rAirDp',`${fmt(airDp,0)} <span class="unit">Pa</span>`);
+ S('rShaft',`${fmt(shaft,2)} / ${fmt(motorMin,2)} <span class="unit">kW</span>`);
+
+ /* --- validation --- */
+ if(BAD_FIELDS.length)msg.push(['danger',(vi?'Giá trị không hợp lệ ở: ':'Invalid value in: ')+BAD_FIELDS.join(', ')+(vi?' — đang tạm dùng giá trị gợi ý.':' — the suggested value is being used instead.')]);
+ if(!(total>0))msg.push(['danger',vi?'Công suất phải lớn hơn 0.':'Capacity must be greater than zero.']);
+ if(dTw<=0)msg.push(['danger',vi?'Nhiệt độ nước hồi phải cao hơn nước cấp.':'CHWR must be higher than CHWS.']);
+ if(!known){
+   if(!(tr-ts>0))msg.push(['danger',vi?'Nhiệt độ gió cấp phải thấp hơn nhiệt độ phòng.':'Supply temperature must be lower than room temperature.']);
+   if(Ws<=0)msg.push(['danger',vi?'Không giải được trạng thái gió cấp: tải ẩn quá lớn so với lưu lượng gió.':'Supply state cannot be solved: the latent load is too high for this airflow.']);
+   else if(rhs>95)msg.push(['danger',vi?`Gió cấp yêu cầu ${fmt(rhs,0)}%RH tại ${fmt(ts,1)}°C — vượt khả năng coil (≤ 95%). Nâng nhiệt độ gió cấp, chấp nhận độ ẩm phòng cao hơn, hoặc bổ sung reheat.`:`Required supply air is ${fmt(rhs,0)}%RH at ${fmt(ts,1)}°C — beyond a real coil (≤ 95%). Raise the supply temperature, accept a higher room humidity, or add reheat.`]);
+   else if(rhs>92)msg.push(['warn',vi?`Gió cấp yêu cầu ${fmt(rhs,0)}%RH — sát giới hạn coil, nên nâng nhiệt độ gió cấp 1–2 K.`:`Required supply air is ${fmt(rhs,0)}%RH — close to the coil limit; raise the supply temperature by 1–2 K.`]);
+ }else{
+   if(!(airflow>0))msg.push(['danger',vi?'Lưu lượng gió cấp phải lớn hơn 0.':'Supply airflow must be greater than zero.']);
+   if(solveFail==='out')msg.push(['danger',vi?'Không giải được trạng thái gió ra coil với công suất và độ ẩm giả định này. Kiểm tra lại công suất yêu cầu hoặc nhập DB/WB từ bản chào.':'The leaving-air state cannot be solved from this capacity and assumed humidity. Check the required capacity or enter DB/WB from the sheet.']);
+   if(airflow>0&&$('kOutMode').value==='given'&&Number.isFinite(tLAT)){
+     const rhOut=RHfromW(tLAT,Ws);
+     if(rhOut>99.5)msg.push(['danger',vi?`DB/WB gió ra của hãng cho ${fmt(rhOut,0)}%RH — vượt đường bão hòa, số liệu không hợp lệ.`:`The quoted leaving DB/WB gives ${fmt(rhOut,0)}%RH — beyond saturation, so the figures are not valid.`]);
+     else if(rhOut<85)msg.push(['warn',vi?`Gió ra coil chỉ ${fmt(rhOut,0)}%RH — thấp bất thường với coil ướt, nên xác nhận lại WB với hãng.`:`Leaving air is only ${fmt(rhOut,0)}%RH — unusually low for a wet coil; confirm the WB with the manufacturer.`]);
+   }
+   if(airflow>0&&duty>0&&Number.isFinite(coilAirQ)&&$('kOutMode').value==='given'&&!solveFail){
+     const mg=(coilAirQ/duty-1)*100;
+     if(mg<-1)msg.push(['danger',vi?`Công suất coil tính được ${fmt(coilAirQ,1)} kW THẤP HƠN yêu cầu ${fmt(duty,1)} kW (${fmt(mg,1)}%). Thiếu tải.`:`The calculated coil capacity of ${fmt(coilAirQ,1)} kW is BELOW the ${fmt(duty,1)} kW required (${fmt(mg,1)}%). The unit is undersized.`]);
+     else if(mg>25)msg.push(['warn',vi?`Công suất coil vượt yêu cầu ${fmt(mg,0)}% — máy dư nhiều, cân nhắc giảm cỡ để tránh chạy non tải.`:`The coil exceeds the requirement by ${fmt(mg,0)}% — heavily oversized; consider a smaller unit to avoid part-load operation.`]);
+     else msg.push(['ok',vi?`Công suất coil ${fmt(coilAirQ,1)} kW đáp ứng yêu cầu ${fmt(duty,1)} kW, dự phòng ${fmt(mg,1)}%.`:`Coil capacity of ${fmt(coilAirQ,1)} kW meets the ${fmt(duty,1)} kW requirement with ${fmt(mg,1)}% margin.`]);
+   }
+ }
+ if(Number.isFinite(adp)){
+   if(adp<chws+1.5)msg.push(['danger',vi?`ADP ${fmt(adp,1)}°C chỉ cách CHWS ${fmt(chws,1)}°C ${fmt(adp-chws,1)} K — coil không thực hiện được. Hạ CHWS hoặc nâng nhiệt độ gió ra.`:`ADP ${fmt(adp,1)}°C is only ${fmt(adp-chws,1)} K above CHWS ${fmt(chws,1)}°C — not achievable. Lower CHWS or raise the leaving temperature.`]);
+   else if(adp<chws+3)msg.push(['warn',vi?`ADP cách CHWS ${fmt(adp-chws,1)} K — khoảng tiếp cận hẹp, cần coil sâu và phải được hãng xác nhận.`:`ADP is only ${fmt(adp-chws,1)} K above CHWS — a tight approach that needs a deep coil and manufacturer confirmation.`]);
+   if(bf<0.02)msg.push(['warn',vi?'Hệ số bypass < 0.02 — cần coil rất sâu (>10 hàng), nên xem lại trạng thái gió ra.':'Bypass factor below 0.02 requires a very deep coil (>10 rows); review the leaving state.']);
+   if(bf>0.30)msg.push(['warn',vi?'Hệ số bypass > 0.30 — coil quá nông, khả năng khử ẩm kém.':'Bypass factor above 0.30 — the coil is too shallow for good dehumidification.']);
+ }else if(adpWhy==='dry'&&total>0)msg.push(['warn',vi?'Không xác định được ADP: coil chỉ làm lạnh khô, không khử ẩm.':'ADP undefined: the coil only cools without dehumidifying.']);
+ if(adpApprox)msg.push(['warn',vi?'Đường xử lý không cắt đường bão hòa nên ADP lấy xấp xỉ bằng điểm sương gió ra; hệ số bypass chỉ mang tính tham khảo.':'The process line does not meet saturation, so ADP is approximated by the leaving-air dew point; the bypass factor is indicative only.']);
+ if(Number.isFinite(lmtd)&&lmtd<4)msg.push(['warn',vi?`LMTD ${fmt(lmtd,1)} K là thấp — diện tích trao đổi nhiệt sẽ rất lớn.`:`LMTD of ${fmt(lmtd,1)} K is low — the heat-transfer area becomes very large.`]);
+ if(!Number.isFinite(lmtd)&&dTw>0&&total>0)msg.push(['danger',vi?'Nhiệt độ nước không thấp hơn nhiệt độ không khí trên toàn coil — không truyền nhiệt được.':'Water is not colder than the air across the whole coil — no heat transfer is possible.']);
+ if(persons>0&&Voa<Vmin*0.999)msg.push(['warn',vi?`Gió tươi ${fmt(Voa,0)} m³/h thấp hơn mức tối thiểu ${fmt(Vmin,0)} m³/h cho ${persons} người.`:`Outdoor air of ${fmt(Voa,0)} m³/h is below the ${fmt(Vmin,0)} m³/h required for ${persons} people.`]);
+ if(fv>=2.5)msg.push(['warn',vi?`Vận tốc mặt coil ${fmt(fv,2)} m/s ≥ 2.5 m/s làm tăng nguy cơ cuốn nước ngưng — cần tấm chắn nước.`:`Face velocity of ${fmt(fv,2)} m/s is at or above 2.5 m/s, raising the condensate carry-over risk — an eliminator is needed.`]);
+ if(filtV>2.5)msg.push(['warn',vi?`Vận tốc qua filter ${fmt(filtV,2)} m/s vượt 2.5 m/s — nên mở rộng tiết diện casing.`:`Filter face velocity of ${fmt(filtV,2)} m/s exceeds 2.5 m/s — widen the casing cross-section.`]);
+ if(!known&&$('coilBasis').value==='load'&&oaPct>0)msg.push(['warn',vi?'Lưu lượng nước đang lấy theo tải phòng nên chưa gồm tải gió tươi và nhiệt quạt.':'Water flow is based on the room load, so it excludes the outdoor-air load and fan heat.']);
+ if(fl!=='water'&&g>0)msg.push(['warn',vi?`Glycol ${g}%: lưu lượng đã hiệu chỉnh theo cp/ρ, nhưng tổn thất áp nước tăng khoảng ${fmt(fp.visc,1)} lần và công suất coil giảm 3–10%.`:`With ${g}% glycol the flow is corrected for cp and density, but water-side pressure drop rises roughly ${fmt(fp.visc,1)}× and coil capacity drops 3–10%.`]);
+ if(!msg.some(x=>x[0]!=='ok')&&!msg.length)msg.push(['ok',vi?'Kết quả nhất quán và khả thi về mặt nhiệt động.':'The result is consistent and thermodynamically feasible.']);
+ if(!msg.length)msg.push(['ok',vi?'Kết quả nhất quán và khả thi về mặt nhiệt động.':'The result is consistent and thermodynamically feasible.']);
+ $('messages').innerHTML=msg.map(x=>`<div class="notice ${x[0]}">${x[1]}</div>`).join('');
+
+
+ LAST={tag:$('ahuTag').value||'—',total:Number.isFinite(coilAirQ)?coilAirQ:total,airflow,coilQ:coilAirQ,waterM3h,pipe:pipe?'DN'+pipe.dn:'—',face:`${fmt(L*1000,0)}×${fmt(H*1000,0)}`};
+ syncDefaultCount();
+ syncKeyBar({airflow,coilAirQ,waterM3h,L,H,known,dead,tLAT,
+   rhLAT:(Number.isFinite(tLAT)&&Number.isFinite(Ws))?RHfromW(tLAT,Ws):NaN,
+   hasDanger:msg.some(x=>x[0]==='danger')});
+ pulse();save();
+}
+
+/* ---------- persistence ---------- */
+const KEY='ahuSizingV14',SKEY='ahuSchedV14';
+function save(){const o={};document.querySelectorAll('input,select').forEach(e=>{if(e.id)o[e.id]=e.value});localStorage.setItem(KEY,JSON.stringify(o))}
+function restore(){try{const s=JSON.parse(localStorage.getItem(KEY)||'{}');Object.entries(s).forEach(([k,v])=>{const e=$(k);if(!e)return;if(e.tagName==='SELECT'&&![...e.options].some(o=>o.value===v))return;e.value=v})}catch(e){}}
+
+/* ---------- AHU schedule ---------- */
+const getSched=()=>{try{return JSON.parse(localStorage.getItem(SKEY)||'[]')}catch(e){return[]}};
+const setSched=a=>localStorage.setItem(SKEY,JSON.stringify(a));
+function renderSched(){
+ const a=getSched(),b=$('schedBody');if(!b)return;
+ const cnt=$('schedCount');if(cnt)cnt.textContent=a.length;
+ if(!a.length){b.innerHTML=`<div class="sched-empty">${T('schedEmpty')}</div>`;return}
+ b.innerHTML=`<table><thead><tr><th>${T('thTag')}</th><th>${T('thLoad')}</th><th>${T('thAir')}</th><th>${T('thCoil')}</th><th>${T('thWater')}</th><th>${T('thPipe')}</th><th>${T('thFace')}</th><th>${T('thDel')}</th></tr></thead><tbody>`
+  +a.map((r,i)=>`<tr><td>${r.tag}</td><td>${fmt(r.total,1)}</td><td>${fmt(r.airflow,0)}</td><td>${fmt(r.coilQ,1)}</td><td>${fmt(r.waterM3h,2)}</td><td>${r.pipe}</td><td>${r.face}</td><td><button class="del" data-del="${i}">×</button></td></tr>`).join('')
+  +'</tbody></table>';
+ b.querySelectorAll('[data-del]').forEach(btn=>btn.onclick=()=>{const a2=getSched();a2.splice(+btn.dataset.del,1);setSched(a2);renderSched()});
+}
+function exportCsv(){
+ const a=getSched();if(!a.length)return;
+ const head=[T('thTag'),T('thLoad'),T('thAir'),T('thCoil'),T('thWater'),T('thPipe'),T('thFace')];
+ const rows=a.map(r=>[r.tag,r.total.toFixed(1),r.airflow.toFixed(0),r.coilQ.toFixed(1),r.waterM3h.toFixed(2),r.pipe,r.face]);
+ const csv='\uFEFF'+[head,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+ const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+ const el=document.createElement('a');el.href=url;el.download=($('pjName').value||'AHU')+'_schedule.csv';el.click();URL.revokeObjectURL(url);
+}
+
+/* ================== tabbed layout (v1.4) ================== */
+const TAB_CARDS={
+ load :['cardLoad','cardAir','cardWater','cardCoil','cardFan','cardResults'],
+ known:['cardKnown','cardWater','cardCoil','cardFan','cardResults']
+};
+let activeTab='load';
+function mountCards(tab){
+ const mount=$('mount-'+tab);if(!mount)return;
+ const pool=$('pool');
+ (TAB_CARDS[tab]||[]).forEach(id=>{const el=$(id);if(el)mount.appendChild(el)});
+ /* anything not used by this tab goes back to the pool so it stays in the DOM */
+ const keep=new Set(TAB_CARDS[tab]||[]);
+ ['cardLoad','cardAir','cardKnown','cardWater','cardCoil','cardFan','cardResults']
+   .forEach(id=>{const el=$(id);if(el&&!keep.has(id))pool.appendChild(el)});
+}
+function setTab(tab,boot){
+ if(!['load','known','sched'].includes(tab))tab='load';
+ activeTab=tab;
+ syncDefaultCount();
+ document.querySelectorAll('[role=tab]').forEach(b=>{
+   const on=b.dataset.tab===tab;
+   b.setAttribute('aria-selected',on?'true':'false');
+   b.tabIndex=on?0:-1;
+ });
+ ['load','known','sched'].forEach(t=>{$('panel-'+t).hidden=t!==tab});
+ if(tab!=='sched'){
+   $('calcMode').value=tab;
+   mountCards(tab);
+   modeUI();calculate();
+ }else{renderSched();syncDefaultCount()}
+ localStorage.setItem('ahuTabV14',tab);
+ if(!boot&&typeof window.scrollTo==='function'){try{window.scrollTo({top:0,behavior:'smooth'})}catch(e){}}
+}
+function initTabs(){
+ const btns=[...document.querySelectorAll('[role=tab]')];
+ btns.forEach((b,i)=>{
+   b.onclick=()=>setTab(b.dataset.tab);
+   b.onkeydown=e=>{
+     const k=e.key;let j=-1;
+     if(k==='ArrowRight')j=(i+1)%btns.length;
+     else if(k==='ArrowLeft')j=(i-1+btns.length)%btns.length;
+     else if(k==='Home')j=0; else if(k==='End')j=btns.length-1;
+     if(j>=0){e.preventDefault();btns[j].focus();setTab(btns[j].dataset.tab)}
+   };
+ });
+}
+/* how many visible fields are still running on their red suggestion */
+function syncDefaultCount(){
+ const el=$('defCount');if(!el)return;
+ const panel=$('panel-'+(activeTab==='known'?'known':'load'));
+ if(!panel||activeTab==='sched'){el.textContent='';return}
+ const n=[...panel.querySelectorAll('input[type=number]')].filter(i=>!i.disabled&&i.value.trim()==='').length;
+ el.textContent=n?`${n} ${T('lgCount')}`:'';
+}
+/* sticky summary strip — the five numbers an engineer re-checks while editing */
+function syncKeyBar(s){
+ const sfx=s.known?'b':'';
+ const set=(n,html)=>{const e=$('kb'+n+sfx);if(e)e.innerHTML=html};
+ if(s.dead){[1,2,3,4,5].forEach(n=>set(n,'\u2014'));return}
+ set(1,`${fmt(s.airflow,0)}<small>m\u00b3/h</small>`);
+ set(2,`${fmt(s.coilAirQ,1)}<small>kW</small>`);
+ set(3,Number.isFinite(s.tLAT)?`${fmt(s.tLAT,1)}<small>\u00b0C / ${fmt(s.rhLAT,0)}%</small>`:'\u2014');
+ set(4,`${fmt(s.waterM3h,2)}<small>m\u00b3/h</small>`);
+ set(5,`${fmt(s.L*1000,0)} \u00d7 ${fmt(s.H*1000,0)}<small>mm</small>`);
+ const kb=$('keybar-'+(s.known?'known':'load'));
+ if(kb)kb.classList.toggle('bad',s.hasDanger);
+}
+/* ---------- UI wiring ---------- */
+function modeLabels(){
+ const known=$('calcMode').value==='known';
+ $('lbTotal').textContent=T(known?'coilTotalK':'designTotal');
+ $('lbSens').textContent=T(known?'coilSensK':'designSens');
+ $('lbLat').textContent=T(known?'coilLatK':'designLat');
+ $('lbSupply').textContent=T(known?'supplyStateK':'supplyState');
+ $('coilNote').textContent=T(known?'block4noteK':'block4note');
+ document.querySelectorAll('[data-n-load]').forEach(el=>{el.textContent=known?el.dataset.nKnown:el.dataset.nLoad});
+}
+function modeUI(){
+ const known=$('calcMode').value==='known';
+ $('basisWrap').hidden=known;$('geoModeWrap').hidden=!known;
+ const dim=known&&$('geoMode').value==='dim';
+ $('fvWrap').hidden=dim;$('arWrap').hidden=dim;$('coilHw').hidden=!dim;$('coilLw').hidden=!dim;
+ const givenOut=$('kOutMode').value==='given';
+ $('kOutDBw').hidden=!givenOut;$('kOutWBw').hidden=!givenOut;$('kOutRHw').hidden=givenOut;
+ const split=$('loadMode').value==='split';
+ $('totalWrap').hidden=split;$('shrWrap').hidden=split;$('sensWrap').hidden=!split;$('latWrap').hidden=!split;
+ const type=$('systemType').value;
+ const oa=$('oaPercent');
+ oa.disabled=type!=='mixed';
+ if(type!=='mixed'){oa.value='';oa.placeholder=type==='oa'?'100':'0'}
+ else if(oa.placeholder==='100'||oa.placeholder==='0')oa.placeholder='10';
+ modeLabels();
+}
+document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',()=>{modeUI();calculate()}));
+$('calcBtn').onclick=()=>calculate();
+$('printBtn').onclick=()=>window.print();
+$('langBtn').onclick=()=>{lang=lang==='vi'?'en':'vi';localStorage.setItem('ahuLangV14',lang);applyLang();calculate()};
+$('resetBtn').onclick=()=>{
+ document.querySelectorAll('input[type=number],input[type=text]').forEach(e=>{e.value=''});
+ localStorage.removeItem(KEY);location.reload();
+};
+$('addBtn').onclick=()=>{if(!LAST||!Number.isFinite(LAST.airflow))return;const a=getSched();a.push(LAST);setSched(a);renderSched()};
+$('csvBtn').onclick=exportCsv;
+$('clearSchedBtn').onclick=()=>{setSched([]);renderSched()};
+
+/* ---------- PWA ---------- */
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('service-worker.js').catch(()=>{});
+let deferred=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;$('installBtn').hidden=false});
+$('installBtn').onclick=async()=>{if(!deferred)return;deferred.prompt();await deferred.userChoice;deferred=null;$('installBtn').hidden=true};
+
+/* ---------- boot ---------- */
+(function(){const d=new Date(),p=n=>String(n).padStart(2,'0');$('pjDate').value=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`})();
+restore();
+initTabs();
+setTab(localStorage.getItem('ahuTabV14')||($('calcMode').value==='known'?'known':'load'),true);
+applyLang();calculate();
+
+</script>
+</body>
+</html>
