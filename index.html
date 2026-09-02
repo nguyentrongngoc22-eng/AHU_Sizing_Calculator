@@ -396,7 +396,13 @@
         <div class="field"><label for="cxGlycol" data-i18n="glycol">Nồng độ glycol (%)</label><select id="cxGlycol"><option value="0">0%</option><option value="20">20%</option><option value="30">30%</option><option value="40">40%</option><option value="50">50%</option></select></div>
         <div class="field"><label for="cxChws" data-i18n="cxChws">CHWS đo được (°C)</label><input id="cxChws" type="number" step="0.1" placeholder="7.0"></div>
         <div class="field"><label for="cxChwr" data-i18n="cxChwr">CHWR đo được (°C)</label><input id="cxChwr" type="number" step="0.1" placeholder="12.0"></div>
-        <div class="field full"><label for="cxWaterFlow" data-i18n="cxWaterFlow">Lưu lượng nước đo được (m³/h)</label><input id="cxWaterFlow" type="number" min="0" step="0.1" placeholder="29.5"></div>
+        <div class="field full"><label for="cxWFlowMode" data-i18n="cxWFlowMode">Nguồn lưu lượng nước</label><select id="cxWFlowMode"><option value="direct" data-i18n="cxWFlowDirect">Đo trực tiếp (đồng hồ/van)</option><option value="dp" data-i18n="cxWFlowDp">Tính từ chênh áp qua coil</option></select></div>
+        <div class="field full" id="cxWaterFlowW"><label for="cxWaterFlow" data-i18n="cxWaterFlow">Lưu lượng nước đo được (m³/h)</label><input id="cxWaterFlow" type="number" min="0" step="0.1" placeholder="29.5"></div>
+        <div class="field full" id="cxDpMethodW" hidden><label for="cxDpMethod" data-i18n="cxDpMethod">Cách suy ra lưu lượng từ chênh áp</label><select id="cxDpMethod"><option value="kv" data-i18n="cxDpKv">Từ hệ số Kv của coil</option><option value="design" data-i18n="cxDpDesign">Từ điểm thiết kế (Q &amp; ΔP)</option></select></div>
+        <div class="field" id="cxPinW" hidden><label for="cxPin" data-i18n="cxPin">Áp suất nước VÀO coil (kPa)</label><input id="cxPin" type="number" min="0" step="1" placeholder="250"></div>
+        <div class="field" id="cxPoutW" hidden><label for="cxPout" data-i18n="cxPout">Áp suất nước RA coil (kPa)</label><input id="cxPout" type="number" min="0" step="1" placeholder="210"></div>
+        <div class="field" id="cxCoilKvW" hidden><label for="cxCoilKv" data-i18n="cxCoilKv">Hệ số Kv của coil (m³/h tại 1 bar)</label><input id="cxCoilKv" type="number" min="0" step="0.1" placeholder="47"><small data-i18n="cxCoilKvNote">Q = Kv × √(ΔP[bar]) — tra datasheet coil</small></div>
+        <div class="field" id="cxDesignDpW" hidden><label for="cxDesignDp" data-i18n="cxDesignDp">Chênh áp qua coil thiết kế (kPa)</label><input id="cxDesignDp" type="number" min="0" step="1" placeholder="45"><small data-i18n="cxDesignDpNote">Dùng cùng lưu lượng nước thiết kế ở khối 1</small></div>
       </div>
     </section>
 
@@ -426,9 +432,11 @@
         <div class="metric"><div class="label" data-i18n="cxMCond">Nước ngưng</div><div class="value" id="cxRCond">—</div></div>
 
         <div class="grp g-water" data-i18n="cxGrpWater">Phía nước</div>
+        <div class="metric"><div class="label" data-i18n="cxMWaterFlow">Lưu lượng nước</div><div class="value" id="cxRWaterFlow">—</div></div>
+        <div class="metric"><div class="label" data-i18n="cxMWaterDp">ΔP nước qua coil</div><div class="value" id="cxRDp">—</div></div>
+        <div class="metric"><div class="label" data-i18n="cxMWaterVs">Lưu lượng nước / thiết kế</div><div class="value" id="cxRWaterVs">—</div></div>
         <div class="metric"><div class="label" data-i18n="cxMWaterCap">Công suất phía nước</div><div class="value" id="cxRWaterCap">—</div></div>
         <div class="metric"><div class="label" data-i18n="cxMWaterDt">Chênh nhiệt nước ΔT</div><div class="value" id="cxRWaterDt">—</div></div>
-        <div class="metric"><div class="label" data-i18n="cxMWaterFlow">Lưu lượng nước đo</div><div class="value" id="cxRWaterFlow">—</div></div>
 
         <div class="grp g-load" data-i18n="cxGrpBalance">Cân bằng và nghiệm thu</div>
         <div class="metric"><div class="label" data-i18n="cxMBalance">Sai lệch cân bằng nhiệt</div><div class="value" id="cxRBalance">—</div></div>
@@ -464,17 +472,19 @@ const dict={
   tabCommx:'Commissioning AHU',kbcAir:'Lưu lượng gió đo',kbcCapAir:'CS phía gió',kbcCapWater:'CS phía nước',kbcBal:'Cân bằng nhiệt',kbcVs:'So với thiết kế',
   cxRef:'Thông số thiết kế (tham chiếu)',cxRefNote:'Nhập số liệu thiết kế/bản chào để đối chiếu với giá trị đo tại hiện trường. Bỏ trống ô nào thì không so sánh mục đó.',cxDesignAir:'Lưu lượng gió thiết kế (CMH)',cxDesignCap:'Công suất lạnh thiết kế (kW)',cxDesignWater:'Lưu lượng nước thiết kế (m³/h)',cxDesignEsp:'Cột áp quạt thiết kế ESP (Pa)',
   cxAir:'Đo phía không khí',cxAirNote:'Nhập lưu lượng gió đo (pitot/flow hood) và nhiệt độ khô/ướt (DB/WB) hai bên coil. Công suất phía gió = lưu lượng khối lượng × chênh entanpi.',cxAirFlow:'Lưu lượng gió cấp đo được (CMH)',
-  cxWater:'Đo phía nước',cxWaterNote:'Nhập lưu lượng nước đo (đồng hồ/van cân bằng) và nhiệt độ nước cấp/hồi. Công suất phía nước dùng để đối chiếu cân bằng nhiệt với phía gió.',cxChws:'CHWS đo được (°C)',cxChwr:'CHWR đo được (°C)',cxWaterFlow:'Lưu lượng nước đo được (m³/h)',
+  cxWater:'Đo phía nước',cxWaterNote:'Nhập nhiệt độ nước cấp/hồi và lưu lượng nước — đo trực tiếp, hoặc tính từ chênh áp trước/sau coil. Công suất phía nước dùng để đối chiếu cân bằng nhiệt với phía gió.',cxChws:'CHWS đo được (°C)',cxChwr:'CHWR đo được (°C)',cxWaterFlow:'Lưu lượng nước đo được (m³/h)',
+  cxWFlowMode:'Nguồn lưu lượng nước',cxWFlowDirect:'Đo trực tiếp (đồng hồ/van)',cxWFlowDp:'Tính từ chênh áp qua coil',cxDpMethod:'Cách suy ra lưu lượng từ chênh áp',cxDpKv:'Từ hệ số Kv của coil',cxDpDesign:'Từ điểm thiết kế (Q & ΔP)',cxPin:'Áp suất nước VÀO coil (kPa)',cxPout:'Áp suất nước RA coil (kPa)',cxCoilKv:'Hệ số Kv của coil (m³/h tại 1 bar)',cxCoilKvNote:'Q = Kv × √(ΔP[bar]) — tra datasheet coil',cxDesignDp:'Chênh áp qua coil thiết kế (kPa)',cxDesignDpNote:'Dùng cùng lưu lượng nước thiết kế ở khối 1',
   cxFan:'Đo quạt và điện',cxFanNote:'Nhập cột áp và số liệu điện đo tại tủ. Công suất điện = √3 × U × I × PF (3 pha) hoặc U × I × PF (1 pha).',cxEsp:'ESP đo được (Pa)',cxFilterDp:'Tổn thất áp qua filter (Pa)',cxPhases:'Số pha',cxPhase3:'3 pha',cxPhase1:'1 pha',cxVolt:'Điện áp đo (V)',cxAmp:'Dòng điện đo (A)',cxPF:'Hệ số công suất PF',cxMotorkW:'Công suất motor định mức (kW)',cxMotorNote:'Để trống nếu chỉ xem công suất đo',
-  cxResults:'Kết quả commissioning',cxGrpAir:'Phía không khí',cxGrpWater:'Phía nước',cxGrpBalance:'Cân bằng và nghiệm thu',cxGrpFan:'Quạt và điện',cxMAir:'Lưu lượng gió đo',cxMAirCap:'Công suất phía gió',cxMSens:'Công suất hiện',cxMShr:'SHR đo được',cxMCond:'Nước ngưng',cxMWaterCap:'Công suất phía nước',cxMWaterDt:'Chênh nhiệt nước ΔT',cxMWaterFlow:'Lưu lượng nước đo',cxMBalance:'Sai lệch cân bằng nhiệt',cxMCapVs:'Công suất / thiết kế',cxMAirVs:'Lưu lượng / thiết kế',cxMEsp:'ESP đo được',cxMFilter:'Tổn thất filter',cxMElec:'Công suất điện motor',cxMMotorLoad:'% tải motor',cxCalc:'Tính nghiệm thu',cxAddToSched:'Thêm vào bảng commissioning',cxExportCsv:'Xuất CSV commissioning',
+  cxResults:'Kết quả commissioning',cxGrpAir:'Phía không khí',cxGrpWater:'Phía nước',cxGrpBalance:'Cân bằng và nghiệm thu',cxGrpFan:'Quạt và điện',cxMAir:'Lưu lượng gió đo',cxMAirCap:'Công suất phía gió',cxMSens:'Công suất hiện',cxMShr:'SHR đo được',cxMCond:'Nước ngưng',cxMWaterCap:'Công suất phía nước',cxMWaterDt:'Chênh nhiệt nước ΔT',cxMWaterFlow:'Lưu lượng nước',cxMWaterDp:'ΔP nước qua coil',cxMWaterVs:'Lưu lượng nước / thiết kế',cxMBalance:'Sai lệch cân bằng nhiệt',cxMCapVs:'Công suất / thiết kế',cxMAirVs:'Lưu lượng / thiết kế',cxMEsp:'ESP đo được',cxMFilter:'Tổn thất filter',cxMElec:'Công suất điện motor',cxMMotorLoad:'% tải motor',cxCalc:'Tính nghiệm thu',cxAddToSched:'Thêm vào bảng commissioning',cxExportCsv:'Xuất CSV commissioning',
   cxThTag:'AHU',cxThAir:'Gió đo (m³/h)',cxThAirVs:'Gió/TK (%)',cxThCap:'CS gió (kW)',cxThCapVs:'CS/TK (%)',cxThWater:'CS nước (kW)',cxThBal:'Cân bằng (%)',cxThVerdict:'Đánh giá',cxSchedEmpty:'Chưa có AHU nào trong bảng commissioning.',cxVerPass:'Đạt',cxVerMarg:'Cận biên',cxVerFail:'Không đạt'},
  en:{title:'AHU Sizing Calculator',subtitle:'Size from a cooling load, or from a known airflow and capacity',install:'Install app',print:'Print / PDF',pjName:'Project',ahuTag:'AHU tag',pjEng:'Calculated by',pjDate:'Date',flowRef:'Airflow reference',flowStd:'Standard air, ρ = 1.2 kg/m³',flowAct:'Actual air density',flowRefNote:'Regional AHU catalogues normally quote CMH at ρ = 1.2',block1:'Cooling Load Input',block1note:'Enter the known load. Use total load + SHR, or enter sensible and latent loads separately.',loadMode:'Load input method',modeTotal:'Total load + SHR',modeSplit:'Sensible + latent load',loadUnit:'Capacity unit',safety:'Safety factor',safetyNote:'% added to the room load',totalLoad:'Total cooling load',beforeSafety:'Before safety factor',sensibleLoad:'Sensible load',latentLoad:'Latent load',blockK:'Known Airflow and Capacity',blockKnote:'Use this when airflow and capacity are already fixed — for example when checking a quoted selection. Coil entering air is given as DB/WB.',kSupply:'Supply air flow (CMH)',kFresh:'Fresh air flow (CMH)',kDuty:'Required cooling capacity (kW)',kDutyNote:'Used to solve the coil leaving state',kOutMode:'Coil leaving air',kSolve:'Solve from the required capacity',kGiven:'Enter DB + WB directly',kInDB:'Coil entering air — DB (°C)',kInWB:'Coil entering air — WB (°C)',kOutDB:'Coil leaving air — DB (°C)',kOutWB:'Coil leaving air — WB (°C)',kOutRH:'Assumed leaving relative humidity (%)',kOutRHnote:'A real wet coil normally leaves at 90–95%',block2:'Air Conditions',block2note:'Every field accepts free entry; the drop-down lists are only common design values. Supply-air humidity is NOT entered — it is solved from the latent load.',block2noteK:'In mode B the coil entering air comes straight from block 1. The fields below drive the ventilation and fan checks.',roomDB:'Room dry-bulb (°C)',roomRH:'Room relative humidity (%)',supplyDB:'Supply-air dry-bulb (°C)',supplyNote:'After the fan (air entering the room)',systemType:'Air system',recirc:'Recirculation AHU',mixed:'Mixed air AHU',oa:'100% outdoor air',oaPercent:'Outdoor-air percentage (%)',persons:'Occupants in served area',personsNote:'0 = skip the minimum ventilation check',lps:'Outdoor air per person (L/s)',lpsNote:'TCVN 5687:2024 / ASHRAE 62.1',fanEsp:'Fan total static pressure (Pa)',fanEff:'Overall fan efficiency (%)',fanEffNote:'Drives fan heat and shaft power',outdoorDB:'Outdoor dry-bulb (°C)',outdoorWB:'Outdoor wet-bulb (°C)',wbNote:'QCVN 02:2022/BXD — southern Vietnam ≈ 35 / 27.5',block3:'Water Side',block3note:'Water flow comes from coil capacity and water temperature difference. Pipe size uses real inside diameters.',fluid:'Fluid',water:'Water',eg:'Ethylene glycol',pg:'Propylene glycol',glycol:'Glycol concentration (%)',chws:'CHWS temperature (°C)',chwr:'CHWR temperature (°C)',pipeVel:'Design pipe velocity (m/s)',coilBasis:'Coil-capacity basis',useDesignLoad:'Use design cooling load',useAirCapacity:'Use air-side calculated capacity',block4:'Cooling Coil',block4note:'Face area follows the selected face velocity. Final rows, fin density and pressure drops must be confirmed by the manufacturer.',block4noteK:'Enter known coil dimensions to check the face velocity, or let the app propose a size from a target velocity.',geoMode:'Coil face defined by',geoVel:'Target face velocity',geoDim:'Known H × L dimensions',faceVel:'Coil face velocity (m/s)',aspect:'Coil aspect ratio W:H',coilH:'Coil height H (mm)',coilL:'Coil length L (mm)',rows:'Coil rows',fpi:'Fin density (FPI)',results:'Calculation Results',designTotal:'Design total load',designSens:'Design sensible load',designLat:'Design latent load',coilTotalK:'Coil total capacity',coilSensK:'Coil sensible capacity',coilLatK:'Coil latent capacity',airflow:'Supply airflow',oaFlow:'Outdoor airflow',massFlow:'Mass flow of dry air',oaMin:'Minimum ventilation air',supplyState:'Required supply-air state',supplyStateK:'Air entering the room (after fan)',enteringAir:'Coil entering air',leavingAir:'Coil leaving air (LAT)',fanHeat:'Fan heat gain to air',coilCapacity:'Coil capacity',coilShr:'Coil SHR',adp:'Apparatus dew point',bf:'Bypass / contact factor',waterFlow:'Chilled-water flow',waterFlowLs:'Water flow',pipeDN:'Coil water pipe',lmtd:'Counterflow LMTD',faceArea:'Coil face area',coilSize:'Coil face L × H',faceVelOut:'Coil face velocity',filterVel:'Filter face velocity',condensate:'Condensate',drainDN:'Condensate drain pipe',airDp:'Coil air-side pressure drop',fanShaft:'Fan shaft power / minimum motor',calculate:'Calculate',addToSched:'Add to AHU schedule',reset:'Reset defaults',tabLoad:'From cooling load',tabKnown:'From known airflow',tabSched:'Schedule',kbAir:'Airflow',kbCoil:'Coil capacity',kbWater:'Water flow',kbSize:'Coil face L × H',kbLat:'Off-coil temperature',lgSuggest:'Red dashed = suggested value, still used in the calculation',lgOwn:'Black = a value you entered',lgCount:'fields on suggested values',grpLoad:'Capacity and airflow',grpAir:'Air states',grpCoil:'Coil',grpWater:'Water and condensate',block6:'Fan and Ventilation',block6note:'Fan pressure drives the fan heat gain and shaft power. Occupancy drives the minimum ventilation check.',schedule:'AHU Schedule',scheduleNote:'Each “Add to AHU schedule” press in tab A or B stores one row here.',exportCsv:'Export CSV',clearSched:'Clear schedule',disclaimer:'Results are preliminary, for the design stage. Final coil selection, water-side pressure drop and fan curve must be confirmed by the AHU manufacturer.',thTag:'AHU',thLoad:'Capacity (kW)',thAir:'Air (m³/h)',thCoil:'Coil (kW)',thWater:'Water (m³/h)',thPipe:'Pipe',thFace:'Coil face (mm)',thDel:'Delete',schedEmpty:'No AHU stored yet.',
   tabCommx:'AHU commissioning',kbcAir:'Measured airflow',kbcCapAir:'Air-side capacity',kbcCapWater:'Water-side capacity',kbcBal:'Heat balance',kbcVs:'Vs design',
   cxRef:'Design reference',cxRefNote:'Enter the design/quoted figures to check the field-measured values against. Leave a field blank to skip that comparison.',cxDesignAir:'Design airflow (CMH)',cxDesignCap:'Design cooling capacity (kW)',cxDesignWater:'Design water flow (m³/h)',cxDesignEsp:'Design fan ESP (Pa)',
   cxAir:'Air-side measurement',cxAirNote:'Enter the measured airflow (pitot/flow hood) and dry/wet-bulb (DB/WB) each side of the coil. Air-side capacity = dry-air mass flow × enthalpy difference.',cxAirFlow:'Measured supply airflow (CMH)',
-  cxWater:'Water-side measurement',cxWaterNote:'Enter the measured water flow (meter/balancing valve) and supply/return temperatures. Water-side capacity cross-checks the heat balance against the air side.',cxChws:'Measured CHWS (°C)',cxChwr:'Measured CHWR (°C)',cxWaterFlow:'Measured water flow (m³/h)',
+  cxWater:'Water-side measurement',cxWaterNote:'Enter the supply/return temperatures and the water flow — measured directly, or derived from the pressure drop across the coil. Water-side capacity cross-checks the heat balance against the air side.',cxChws:'Measured CHWS (°C)',cxChwr:'Measured CHWR (°C)',cxWaterFlow:'Measured water flow (m³/h)',
+  cxWFlowMode:'Water-flow source',cxWFlowDirect:'Measured directly (meter/valve)',cxWFlowDp:'Derived from coil pressure drop',cxDpMethod:'How to derive flow from ΔP',cxDpKv:'From coil Kv coefficient',cxDpDesign:'From design point (Q & ΔP)',cxPin:'Water pressure INTO coil (kPa)',cxPout:'Water pressure OUT of coil (kPa)',cxCoilKv:'Coil Kv (m³/h at 1 bar)',cxCoilKvNote:'Q = Kv × √(ΔP[bar]) — from the coil datasheet',cxDesignDp:'Design coil pressure drop (kPa)',cxDesignDpNote:'Uses the design water flow in block 1',
   cxFan:'Fan and electrical measurement',cxFanNote:'Enter the measured pressure and electrical readings at the panel. Electrical power = √3 × V × I × PF (3-phase) or V × I × PF (1-phase).',cxEsp:'Measured ESP (Pa)',cxFilterDp:'Filter pressure drop (Pa)',cxPhases:'Phases',cxPhase3:'3-phase',cxPhase1:'1-phase',cxVolt:'Measured voltage (V)',cxAmp:'Measured current (A)',cxPF:'Power factor PF',cxMotorkW:'Rated motor power (kW)',cxMotorNote:'Leave blank to only show measured power',
-  cxResults:'Commissioning results',cxGrpAir:'Air side',cxGrpWater:'Water side',cxGrpBalance:'Balance and acceptance',cxGrpFan:'Fan and electrical',cxMAir:'Measured airflow',cxMAirCap:'Air-side capacity',cxMSens:'Sensible capacity',cxMShr:'Measured SHR',cxMCond:'Condensate',cxMWaterCap:'Water-side capacity',cxMWaterDt:'Water ΔT',cxMWaterFlow:'Measured water flow',cxMBalance:'Heat-balance deviation',cxMCapVs:'Capacity / design',cxMAirVs:'Airflow / design',cxMEsp:'Measured ESP',cxMFilter:'Filter drop',cxMElec:'Motor electrical power',cxMMotorLoad:'Motor load %',cxCalc:'Check commissioning',cxAddToSched:'Add to commissioning table',cxExportCsv:'Export commissioning CSV',
+  cxResults:'Commissioning results',cxGrpAir:'Air side',cxGrpWater:'Water side',cxGrpBalance:'Balance and acceptance',cxGrpFan:'Fan and electrical',cxMAir:'Measured airflow',cxMAirCap:'Air-side capacity',cxMSens:'Sensible capacity',cxMShr:'Measured SHR',cxMCond:'Condensate',cxMWaterCap:'Water-side capacity',cxMWaterDt:'Water ΔT',cxMWaterFlow:'Water flow',cxMWaterDp:'Coil water ΔP',cxMWaterVs:'Water flow / design',cxMBalance:'Heat-balance deviation',cxMCapVs:'Capacity / design',cxMAirVs:'Airflow / design',cxMEsp:'Measured ESP',cxMFilter:'Filter drop',cxMElec:'Motor electrical power',cxMMotorLoad:'Motor load %',cxCalc:'Check commissioning',cxAddToSched:'Add to commissioning table',cxExportCsv:'Export commissioning CSV',
   cxThTag:'AHU',cxThAir:'Air meas. (m³/h)',cxThAirVs:'Air/design (%)',cxThCap:'Air cap (kW)',cxThCapVs:'Cap/design (%)',cxThWater:'Water cap (kW)',cxThBal:'Balance (%)',cxThVerdict:'Verdict',cxSchedEmpty:'No AHU stored in the commissioning table yet.',cxVerPass:'Pass',cxVerMarg:'Marginal',cxVerFail:'Fail'}
 };
 let lang=localStorage.getItem('ahuLangV14')||'vi';
@@ -769,10 +779,27 @@ function calcCommx(){
  const fl=$('cxFluid').value,g=fl==='water'?0:num('cxGlycol');
  const fp=fluidProps(fl,g);
  const chws=num('cxChws',7),chwr=num('cxChwr',12),dTw=chwr-chws;
- const wflow=num('cxWaterFlow',0);
+ /* water flow: measured directly, or derived from the coil pressure drop (Q ∝ √ΔP) */
+ const wSrc=$('cxWFlowMode').value;
+ let wflow,dpMeas=NaN,dpFail='';
+ if(wSrc==='dp'){
+   dpMeas=num('cxPin',0)-num('cxPout',0);
+   if($('cxDpMethod').value==='kv'){
+     const kv=num('cxCoilKv',0);
+     if(kv>0&&dpMeas>0)wflow=kv*Math.sqrt(dpMeas/100);        /* Kv at 1 bar = 100 kPa */
+     else{wflow=0;dpFail='kv'}
+   }else{
+     const qd=num('cxDesignWater',0),dpd=num('cxDesignDp',0);
+     if(qd>0&&dpd>0&&dpMeas>0)wflow=qd*Math.sqrt(dpMeas/dpd); /* square-root scaling from design point */
+     else{wflow=0;dpFail='design'}
+   }
+ }else{
+   wflow=num('cxWaterFlow',0);
+ }
  const mw=wflow*fp.rho/3600;
  const qWater=mw*fp.cp*dTw;
  const haveWater=wflow>0&&dTw>0&&Number.isFinite(qWater)&&qWater>0;
+ const waterRatio=(dWater>0&&wflow>0)?wflow/dWater*100:NaN;
  /* --- balance & comparison --- */
  const balErr=(haveAir&&haveWater)?(qAirTot-qWater)/((qAirTot+qWater)/2)*100:NaN;
  const measCap=haveAir?qAirTot:(haveWater?qWater:NaN);
@@ -795,7 +822,9 @@ function calcCommx(){
  V('cxRCond',haveAir?`${fmt(cond,1)} <span class="unit">kg/h</span>`:'—');
  V('cxRWaterCap',haveWater?`${fmt(qWater,2)} <span class="unit">kW</span>`:'—');
  V('cxRWaterDt',Number.isFinite(dTw)&&wflow>0?`${fmt(dTw,2)} <span class="unit">K</span>`:'—');
- V('cxRWaterFlow',wflow>0?`${fmt(wflow,2)} <span class="unit">m³/h</span>`:'—');
+ V('cxRWaterFlow',wflow>0?`${fmt(wflow,2)} <span class="unit">m³/h${wSrc==='dp'?' ← ΔP':''}</span>`:'—');
+ V('cxRDp',Number.isFinite(dpMeas)&&dpMeas>0?`${fmt(dpMeas,1)} <span class="unit">kPa</span>`:'—');
+ V('cxRWaterVs',Number.isFinite(waterRatio)?`${fmt(waterRatio,1)} <span class="unit">%</span>`:'—');
  V('cxRBalance',Number.isFinite(balErr)?`${balErr>0?'+':''}${fmt(balErr,1)} <span class="unit">%</span>`:'—');
  V('cxRCapVs',Number.isFinite(capRatio)?`${fmt(capRatio,1)} <span class="unit">%</span>`:'—');
  V('cxRAirVs',Number.isFinite(airRatio)?`${fmt(airRatio,1)} <span class="unit">%</span>`:'—');
@@ -809,6 +838,17 @@ function calcCommx(){
  if(!haveAir&&!haveWater)msg.push(['warn',vi?'Nhập lưu lượng gió + DB/WB, hoặc lưu lượng nước + nhiệt độ nước, để tính công suất đo.':'Enter airflow + DB/WB, or water flow + water temperatures, to compute the measured capacity.']);
  if(haveAir&&!(te>tl))msg.push(['danger',vi?'Nhiệt độ gió ra coil phải thấp hơn gió vào.':'Coil leaving air must be colder than entering air.']);
  if(wflow>0&&dTw<=0)msg.push(['danger',vi?'CHWR đo phải cao hơn CHWS đo.':'Measured CHWR must be higher than measured CHWS.']);
+ if(wSrc==='dp'){
+   if(Number.isFinite(dpMeas)&&dpMeas<=0)msg.push(['danger',vi?'Chênh áp qua coil phải lớn hơn 0 (áp vào phải cao hơn áp ra).':'The coil pressure drop must be greater than zero (inlet pressure above outlet).']);
+   else if(dpFail==='kv')msg.push(['warn',vi?'Nhập hệ số Kv của coil và chênh áp trước/sau coil để suy ra lưu lượng nước.':'Enter the coil Kv and the inlet/outlet pressures to derive the water flow.']);
+   else if(dpFail==='design')msg.push(['warn',vi?'Nhập lưu lượng nước & chênh áp THIẾT KẾ (khối 1 và khối này) và chênh áp ĐO để suy ra lưu lượng.':'Enter the DESIGN water flow & ΔP (block 1 and this block) and the MEASURED ΔP to derive the flow.']);
+   else if(wflow>0)msg.push(['ok',vi?`Lưu lượng nước suy từ ΔP ${fmt(dpMeas,0)} kPa qua coil = ${fmt(wflow,2)} m³/h (${fmt(wflow/3.6,2)} L/s).`:`Water flow derived from the ${fmt(dpMeas,0)} kPa coil ΔP = ${fmt(wflow,2)} m³/h (${fmt(wflow/3.6,2)} L/s).`]);
+ }
+ if(Number.isFinite(waterRatio)){
+   if(waterRatio<90)msg.push(['danger',vi?`Lưu lượng nước ${fmt(wflow,2)} m³/h chỉ đạt ${fmt(waterRatio,0)}% thiết kế ${fmt(dWater,2)} m³/h — thiếu nước, cần cân chỉnh van/bơm.`:`Water flow ${fmt(wflow,2)} m³/h is only ${fmt(waterRatio,0)}% of the ${fmt(dWater,2)} m³/h design — under flow; adjust the valve/pump.`]);
+   else if(waterRatio>110)msg.push(['warn',vi?`Lưu lượng nước vượt ${fmt(waterRatio-100,0)}% thiết kế — cân chỉnh van cân bằng để đúng thiết kế.`:`Water flow exceeds design by ${fmt(waterRatio-100,0)}% — trim the balancing valve toward design.`]);
+   else msg.push(['ok',vi?`Lưu lượng nước đạt ${fmt(waterRatio,0)}% thiết kế (trong ±10%).`:`Water flow is ${fmt(waterRatio,0)}% of design (within ±10%).`]);
+ }
  if(Number.isFinite(airRatio)){
    if(airRatio<90)msg.push(['danger',vi?`Lưu lượng gió đo ${fmt(air,0)} m³/h chỉ đạt ${fmt(airRatio,0)}% thiết kế — thiếu gió, cần cân chỉnh quạt/đường ống.`:`Measured airflow ${fmt(air,0)} m³/h is only ${fmt(airRatio,0)}% of design — under airflow; adjust fan/ductwork.`]);
    else if(airRatio>110)msg.push(['warn',vi?`Lưu lượng gió đo vượt ${fmt(airRatio-100,0)}% thiết kế — nên cân chỉnh giảm để đúng thiết kế.`:`Measured airflow exceeds design by ${fmt(airRatio-100,0)}% — balance down toward design.`]);
@@ -922,7 +962,7 @@ function setTab(tab,boot){
  });
  ['load','known','commx','sched'].forEach(t=>{$('panel-'+t).hidden=t!==tab});
  if(tab==='commx'){
-   mountCards(tab);calcCommx();renderCxSched();
+   mountCards(tab);cxModeUI();calcCommx();renderCxSched();
  }else if(tab!=='sched'){
    $('calcMode').value=tab;
    mountCards(tab);
@@ -991,7 +1031,14 @@ function modeUI(){
  else if(oa.placeholder==='100'||oa.placeholder==='0')oa.placeholder='10';
  modeLabels();
 }
-function recalc(){if(activeTab==='commx'){calcCommx()}else{modeUI();calculate()}}
+function cxModeUI(){
+ const dp=$('cxWFlowMode').value==='dp';
+ $('cxWaterFlowW').hidden=dp;
+ $('cxDpMethodW').hidden=!dp;$('cxPinW').hidden=!dp;$('cxPoutW').hidden=!dp;
+ const kv=$('cxDpMethod').value==='kv';
+ $('cxCoilKvW').hidden=!dp||!kv;$('cxDesignDpW').hidden=!dp||kv;
+}
+function recalc(){if(activeTab==='commx'){cxModeUI();calcCommx()}else{modeUI();calculate()}}
 document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',recalc));
 $('calcBtn').onclick=()=>calculate();
 $('cxCalcBtn').onclick=()=>calcCommx();
