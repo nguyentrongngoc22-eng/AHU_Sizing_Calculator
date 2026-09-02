@@ -1,5 +1,5 @@
 /* AHU Sizing Calculator v1.2 - offline cache */
-const CACHE = 'ahu-sizing-v1-6';
+const CACHE = 'ahu-sizing-v1-7';
 const ASSETS = [
   './',
   './index.html',
