@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#0b5cab" />
   <meta name="description" content="AHU sizing and vendor-selection check: airflow, coil ADP/bypass factor, chilled-water flow, pipe sizes and preliminary coil geometry — plus a commissioning tab to verify field-measured airflow, capacity and air/water heat balance against design." />
   <link rel="manifest" href="manifest.webmanifest" />
-  <title>AHU Sizing Calculator v1.8</title>
+  <title>AHU Sizing Calculator v1.9</title>
   <style>
     :root{--bg:#f4f7fb;--card:#fff;--text:#172033;--muted:#637083;--primary:#0b5cab;--primary2:#0a7ac2;--border:#dbe3ec;--ok:#137333;--warn:#9a6700;--danger:#b3261e;--shadow:0 10px 28px rgba(24,50,82,.09)}
     *{box-sizing:border-box} body{margin:0;font-family:Inter,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
@@ -165,6 +165,7 @@
       <button role="tab" id="tab-load"  aria-controls="panel-load"  aria-selected="true"  data-tab="load"><span class="tnum">A</span><span data-i18n="tabLoad">Từ tải lạnh</span></button>
       <button role="tab" id="tab-known" aria-controls="panel-known" aria-selected="false" data-tab="known" tabindex="-1"><span class="tnum">B</span><span data-i18n="tabKnown">Từ lưu lượng đã biết</span></button>
       <button role="tab" id="tab-commx" aria-controls="panel-commx" aria-selected="false" data-tab="commx" tabindex="-1"><span class="tnum">C</span><span data-i18n="tabCommx">Commissioning AHU</span></button>
+      <button role="tab" id="tab-fan" aria-controls="panel-fan" aria-selected="false" data-tab="fan" tabindex="-1"><span class="tnum">D</span><span data-i18n="tabFan">Tần số & cột áp</span></button>
       <button role="tab" id="tab-sched" aria-controls="panel-sched" aria-selected="false" data-tab="sched" tabindex="-1"><span class="tnum">Σ</span><span data-i18n="tabSched">Bảng tổng hợp</span><span class="cnt" id="schedCount">0</span></button>
     </div>
     <div class="tabtool">
@@ -213,6 +214,17 @@
       <div class="k"><div class="kl" data-i18n="kbcVs">So với thiết kế</div><div class="kv" id="cxk5">—</div></div>
     </div>
     <div class="grid" id="mount-commx"></div>
+  </div>
+
+  <div class="panel" id="panel-fan" role="tabpanel" aria-labelledby="tab-fan" hidden>
+    <div class="keybar" id="keybar-fan">
+      <div class="k"><div class="kl" data-i18n="kfHz">Tần số đặt</div><div class="kv" id="fk1">—</div></div>
+      <div class="k"><div class="kl" data-i18n="kfFlow">Lưu lượng</div><div class="kv" id="fk2">—</div></div>
+      <div class="k"><div class="kl" data-i18n="kfTsp">Cột áp quạt</div><div class="kv" id="fk3">—</div></div>
+      <div class="k"><div class="kl" data-i18n="kfPower">Công suất trục</div><div class="kv" id="fk4">—</div></div>
+      <div class="k"><div class="kl" data-i18n="kfSave">Tiết kiệm điện</div><div class="kv" id="fk5">—</div></div>
+    </div>
+    <div class="grid" id="mount-fan"></div>
   </div>
 
   <div class="panel" id="panel-sched" role="tabpanel" aria-labelledby="tab-sched" hidden>
@@ -459,11 +471,58 @@
       <div id="cxSchedBody" style="margin-top:8px"></div>
     </section>
 
+    <!-- ============ Tab D — fan affinity (frequency vs airflow, pressure, power) ============ -->
+    <section class="card c5" id="cardFanRef">
+      <h2><span class="num">1</span><span data-i18n="fRef">Điểm vận hành gốc (định mức)</span></h2>
+      <p class="section-note" data-i18n="fRefNote">Nhập một điểm vận hành đã biết của quạt (thường là điểm định mức ở 50 Hz): lưu lượng, cột áp và công suất. Các giá trị này là mốc để suy ra khi đổi tần số.</p>
+      <div class="form-grid">
+        <div class="field"><label for="fRefHz" data-i18n="fRefHz">Tần số gốc f₁ (Hz)</label><input id="fRefHz" type="number" min="1" step="1" list="dl_fhz" placeholder="50"><datalist id="dl_fhz"><option>50</option><option>60</option></datalist></div>
+        <div class="field"><label for="fRefFlow" data-i18n="fRefFlow">Lưu lượng gốc Q₁ (CMH)</label><input id="fRefFlow" type="number" min="0" step="10" placeholder="13600"></div>
+        <div class="field"><label for="fRefTsp" data-i18n="fRefTsp">Cột áp quạt gốc TSP₁ (Pa)</label><input id="fRefTsp" type="number" min="0" step="10" placeholder="500"></div>
+        <div class="field"><label for="fRefPower" data-i18n="fRefPower">Công suất trục gốc P₁ (kW)</label><input id="fRefPower" type="number" min="0" step="0.1" placeholder="≈ tự tính"><small data-i18n="fRefPowerNote">Bỏ trống → ước từ Q₁·TSP₁ / hiệu suất</small></div>
+        <div class="field"><label for="fRefEff" data-i18n="fRefEff">Hiệu suất quạt tổng (%)</label><input id="fRefEff" type="number" min="20" max="90" step="1" list="dl_feff" placeholder="65"><datalist id="dl_feff"><option>55</option><option>60</option><option>65</option><option>70</option></datalist></div>
+      </div>
+    </section>
+
+    <section class="card c2" id="cardFanNew">
+      <h2><span class="num">2</span><span data-i18n="fNew">Điểm vận hành mới</span></h2>
+      <p class="section-note" data-i18n="fNewNote">Chọn điều khiển theo tần số đặt trên biến tần, hoặc theo lưu lượng mong muốn — app dùng định luật đồng dạng: Q∝N, cột áp∝N², công suất∝N³.</p>
+      <div class="form-grid">
+        <div class="field full"><label for="fDrive" data-i18n="fDrive">Điều khiển theo</label><select id="fDrive"><option value="hz" data-i18n="fDriveHz">Tần số đặt (Hz)</option><option value="flow" data-i18n="fDriveFlow">Lưu lượng mong muốn (CMH)</option></select></div>
+        <div class="field" id="fNewHzW"><label for="fNewHz" data-i18n="fNewHz">Tần số mới f₂ (Hz)</label><input id="fNewHz" type="number" min="0" step="0.5" list="dl_fhz2" placeholder="40"><datalist id="dl_fhz2"><option>30</option><option>35</option><option>40</option><option>45</option></datalist></div>
+        <div class="field" id="fNewFlowW" hidden><label for="fNewFlow" data-i18n="fNewFlow">Lưu lượng mong muốn Q₂ (CMH)</label><input id="fNewFlow" type="number" min="0" step="10" placeholder="10000"></div>
+        <div class="field"><label for="fMinHz" data-i18n="fMinHz">Tần số tối thiểu cho phép (Hz)</label><input id="fMinHz" type="number" min="0" step="1" list="dl_fmin" placeholder="20"><datalist id="dl_fmin"><option>15</option><option>20</option><option>25</option><option>30</option></datalist><small data-i18n="fMinHzNote">Dưới mức này motor có thể thiếu làm mát</small></div>
+      </div>
+    </section>
+
+    <section class="card result-card full" id="cardFanResults" style="grid-column:1/-1">
+      <h2 data-i18n="fResults">Kết quả theo tần số</h2>
+      <div id="fMessages"></div>
+      <div class="results" style="margin-top:12px">
+        <div class="grp g-load" data-i18n="fGrpPoint">Điểm vận hành mới</div>
+        <div class="metric"><div class="label" data-i18n="fMRatio">Tỉ số tốc độ f₂/f₁</div><div class="value" id="fRRatio">—</div></div>
+        <div class="metric"><div class="label" data-i18n="fMHz">Tần số đặt f₂</div><div class="value" id="fRHz">—</div></div>
+        <div class="metric"><div class="label" data-i18n="fMFlow">Lưu lượng Q₂</div><div class="value" id="fRFlow">—</div></div>
+        <div class="metric"><div class="label" data-i18n="fMTsp">Cột áp quạt TSP₂</div><div class="value" id="fRTsp">—</div></div>
+        <div class="grp g-water" data-i18n="fGrpPower">Công suất và tiết kiệm</div>
+        <div class="metric"><div class="label" data-i18n="fMPower">Công suất trục P₂</div><div class="value" id="fRPower">—</div></div>
+        <div class="metric"><div class="label" data-i18n="fMRefPower">Công suất trục gốc P₁</div><div class="value" id="fRRefPower">—</div></div>
+        <div class="metric"><div class="label" data-i18n="fMSave">Tiết kiệm điện so gốc</div><div class="value" id="fRSave">—</div></div>
+        <div class="metric"><div class="label" data-i18n="fMSaveKw">Công suất tiết kiệm</div><div class="value" id="fRSaveKw">—</div></div>
+      </div>
+      <p class="section-note" style="margin-top:14px" data-i18n="fSweepNote">Bảng quét tần số — lưu lượng, cột áp và công suất ở từng mức tần số (dòng đậm là điểm đang chọn).</p>
+      <div id="fSweepBody"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn btn-primary" id="fCalcBtn" data-i18n="fCalc">Tính</button>
+        <button class="btn btn-ghost" id="fCsvBtn" data-i18n="fExportCsv">Xuất CSV bảng quét</button>
+      </div>
+    </section>
+
   </div>
 
   <div class="footer">
     <div data-i18n="disclaimer">Kết quả mang tính sơ bộ cho giai đoạn thiết kế. Lựa chọn coil cuối cùng, tổn thất áp nước và đường đặc tính quạt phải do hãng AHU xác nhận.</div>
-    <div>AHU Sizing Calculator v1.8 · Developed by Trọng Ngọc</div>
+    <div>AHU Sizing Calculator v1.9 · Developed by Trọng Ngọc</div>
   </div>
 </main>
 <script>
@@ -478,7 +537,12 @@ const dict={
   cxWFlowMode:'Nguồn lưu lượng nước',cxWFlowDirect:'Đo trực tiếp (đồng hồ/van)',cxWFlowDp:'Tính từ chênh áp qua coil',cxDpMethod:'Cách suy ra lưu lượng từ chênh áp',cxDpKv:'Từ hệ số Kv của coil',cxDpDesign:'Từ điểm thiết kế (Q & ΔP)',cxPin:'Áp suất nước VÀO coil (kPa)',cxPout:'Áp suất nước RA coil (kPa)',cxCoilKv:'Hệ số Kv của coil (m³/h tại 1 bar)',cxCoilKvNote:'Q = Kv × √(ΔP[bar]) — tra datasheet coil',cxDesignDp:'Chênh áp qua coil thiết kế (kPa)',cxDesignDpNote:'Dùng cùng lưu lượng nước thiết kế ở khối 1',
   cxFan:'Đo quạt và điện',cxFanNote:'Nhập cột áp và số liệu điện đo tại tủ. Công suất điện = √3 × U × I × PF (3 pha) hoặc U × I × PF (1 pha).',cxEsp:'ESP đo được (Pa)',cxFilterDp:'Tổn thất áp qua filter (Pa)',cxPhases:'Số pha',cxPhase3:'3 pha',cxPhase1:'1 pha',cxVolt:'Điện áp đo (V)',cxAmp:'Dòng điện đo (A)',cxPF:'Hệ số công suất PF',cxMotorkW:'Công suất motor định mức (kW)',cxMotorNote:'Để trống nếu chỉ xem công suất đo',
   cxResults:'Kết quả commissioning',cxGrpAir:'Phía không khí',cxGrpWater:'Phía nước',cxGrpBalance:'Cân bằng và nghiệm thu',cxGrpFan:'Quạt và điện',cxMAir:'Lưu lượng gió đo',cxMAirCap:'Công suất phía gió',cxMSens:'Công suất hiện',cxMShr:'SHR đo được',cxMCond:'Nước ngưng',cxMWaterCap:'Công suất phía nước',cxMWaterDt:'Chênh nhiệt nước ΔT',cxMWaterFlow:'Lưu lượng nước',cxMWaterDp:'ΔP nước qua coil',cxMKv:'Kv coil (suy ra)',cxMWaterVs:'Lưu lượng nước / thiết kế',cxMBalance:'Sai lệch cân bằng nhiệt',cxMCapVs:'Công suất / thiết kế',cxMAirVs:'Lưu lượng / thiết kế',cxMEsp:'ESP đo được',cxMFilter:'Tổn thất filter',cxMElec:'Công suất điện motor',cxMMotorLoad:'% tải motor',cxCalc:'Tính nghiệm thu',cxAddToSched:'Thêm vào bảng commissioning',cxExportCsv:'Xuất CSV commissioning',
-  cxThTag:'AHU',cxThAir:'Gió đo (m³/h)',cxThAirVs:'Gió/TK (%)',cxThCap:'CS gió (kW)',cxThCapVs:'CS/TK (%)',cxThWater:'CS nước (kW)',cxThBal:'Cân bằng (%)',cxThVerdict:'Đánh giá',cxSchedEmpty:'Chưa có AHU nào trong bảng commissioning.',cxVerPass:'Đạt',cxVerMarg:'Cận biên',cxVerFail:'Không đạt'},
+  cxThTag:'AHU',cxThAir:'Gió đo (m³/h)',cxThAirVs:'Gió/TK (%)',cxThCap:'CS gió (kW)',cxThCapVs:'CS/TK (%)',cxThWater:'CS nước (kW)',cxThBal:'Cân bằng (%)',cxThVerdict:'Đánh giá',cxSchedEmpty:'Chưa có AHU nào trong bảng commissioning.',cxVerPass:'Đạt',cxVerMarg:'Cận biên',cxVerFail:'Không đạt',
+  tabFan:'Tần số & cột áp',kfHz:'Tần số đặt',kfFlow:'Lưu lượng',kfTsp:'Cột áp quạt',kfPower:'Công suất trục',kfSave:'Tiết kiệm điện',
+  fRef:'Điểm vận hành gốc (định mức)',fRefNote:'Nhập một điểm vận hành đã biết của quạt (thường là điểm định mức ở 50 Hz): lưu lượng, cột áp và công suất. Các giá trị này là mốc để suy ra khi đổi tần số.',fRefHz:'Tần số gốc f₁ (Hz)',fRefFlow:'Lưu lượng gốc Q₁ (CMH)',fRefTsp:'Cột áp quạt gốc TSP₁ (Pa)',fRefPower:'Công suất trục gốc P₁ (kW)',fRefPowerNote:'Bỏ trống → ước từ Q₁·TSP₁ / hiệu suất',fRefEff:'Hiệu suất quạt tổng (%)',
+  fNew:'Điểm vận hành mới',fNewNote:'Chọn điều khiển theo tần số đặt trên biến tần, hoặc theo lưu lượng mong muốn — app dùng định luật đồng dạng: Q∝N, cột áp∝N², công suất∝N³.',fDrive:'Điều khiển theo',fDriveHz:'Tần số đặt (Hz)',fDriveFlow:'Lưu lượng mong muốn (CMH)',fNewHz:'Tần số mới f₂ (Hz)',fNewFlow:'Lưu lượng mong muốn Q₂ (CMH)',fMinHz:'Tần số tối thiểu cho phép (Hz)',fMinHzNote:'Dưới mức này motor có thể thiếu làm mát',
+  fResults:'Kết quả theo tần số',fGrpPoint:'Điểm vận hành mới',fGrpPower:'Công suất và tiết kiệm',fMRatio:'Tỉ số tốc độ f₂/f₁',fMHz:'Tần số đặt f₂',fMFlow:'Lưu lượng Q₂',fMTsp:'Cột áp quạt TSP₂',fMPower:'Công suất trục P₂',fMRefPower:'Công suất trục gốc P₁',fMSave:'Tiết kiệm điện so gốc',fMSaveKw:'Công suất tiết kiệm',fSweepNote:'Bảng quét tần số — lưu lượng, cột áp và công suất ở từng mức tần số (dòng đậm là điểm đang chọn).',fCalc:'Tính',fExportCsv:'Xuất CSV bảng quét',
+  fThHz:'Tần số (Hz)',fThFlow:'Lưu lượng (m³/h)',fThFlowPct:'Q (%)',fThTsp:'Cột áp (Pa)',fThPower:'Công suất (kW)',fThPowerPct:'Điện (%)'},
  en:{title:'AHU Sizing Calculator',subtitle:'Size from a cooling load, or from a known airflow and capacity',install:'Install app',print:'Print / PDF',pjName:'Project',ahuTag:'AHU tag',pjEng:'Calculated by',pjDate:'Date',flowRef:'Airflow reference',flowStd:'Standard air, ρ = 1.2 kg/m³',flowAct:'Actual air density',flowRefNote:'Regional AHU catalogues normally quote CMH at ρ = 1.2',block1:'Cooling Load Input',block1note:'Enter the known load. Use total load + SHR, or enter sensible and latent loads separately.',loadMode:'Load input method',modeTotal:'Total load + SHR',modeSplit:'Sensible + latent load',loadUnit:'Capacity unit',safety:'Safety factor',safetyNote:'% added to the room load',totalLoad:'Total cooling load',beforeSafety:'Before safety factor',sensibleLoad:'Sensible load',latentLoad:'Latent load',blockK:'Known Airflow and Capacity',blockKnote:'Use this when airflow and capacity are already fixed — for example when checking a quoted selection. Coil entering air is given as DB/WB.',kSupply:'Supply air flow (CMH)',kFresh:'Fresh air flow (CMH)',kDuty:'Required cooling capacity (kW)',kDutyNote:'Used to solve the coil leaving state',kOutMode:'Coil leaving air',kSolve:'Solve from the required capacity',kGiven:'Enter DB + WB directly',kInDB:'Coil entering air — DB (°C)',kInWB:'Coil entering air — WB (°C)',kOutDB:'Coil leaving air — DB (°C)',kOutWB:'Coil leaving air — WB (°C)',kOutRH:'Assumed leaving relative humidity (%)',kOutRHnote:'A real wet coil normally leaves at 90–95%',block2:'Air Conditions',block2note:'Every field accepts free entry; the drop-down lists are only common design values. Supply-air humidity is NOT entered — it is solved from the latent load.',block2noteK:'In mode B the coil entering air comes straight from block 1. The fields below drive the ventilation and fan checks.',roomDB:'Room dry-bulb (°C)',roomRH:'Room relative humidity (%)',supplyDB:'Supply-air dry-bulb (°C)',supplyNote:'After the fan (air entering the room)',systemType:'Air system',recirc:'Recirculation AHU',mixed:'Mixed air AHU',oa:'100% outdoor air',oaPercent:'Outdoor-air percentage (%)',persons:'Occupants in served area',personsNote:'0 = skip the minimum ventilation check',lps:'Outdoor air per person (L/s)',lpsNote:'TCVN 5687:2024 / ASHRAE 62.1',fanEsp:'Fan total static pressure (Pa)',fanEff:'Overall fan efficiency (%)',fanEffNote:'Drives fan heat and shaft power',outdoorDB:'Outdoor dry-bulb (°C)',outdoorWB:'Outdoor wet-bulb (°C)',wbNote:'QCVN 02:2022/BXD — southern Vietnam ≈ 35 / 27.5',block3:'Water Side',block3note:'Water flow comes from coil capacity and water temperature difference. Pipe size uses real inside diameters.',fluid:'Fluid',water:'Water',eg:'Ethylene glycol',pg:'Propylene glycol',glycol:'Glycol concentration (%)',chws:'CHWS temperature (°C)',chwr:'CHWR temperature (°C)',pipeVel:'Design pipe velocity (m/s)',coilBasis:'Coil-capacity basis',useDesignLoad:'Use design cooling load',useAirCapacity:'Use air-side calculated capacity',block4:'Cooling Coil',block4note:'Face area follows the selected face velocity. Final rows, fin density and pressure drops must be confirmed by the manufacturer.',block4noteK:'Enter known coil dimensions to check the face velocity, or let the app propose a size from a target velocity.',geoMode:'Coil face defined by',geoVel:'Target face velocity',geoDim:'Known H × L dimensions',faceVel:'Coil face velocity (m/s)',aspect:'Coil aspect ratio W:H',coilH:'Coil height H (mm)',coilL:'Coil length L (mm)',rows:'Coil rows',fpi:'Fin density (FPI)',results:'Calculation Results',designTotal:'Design total load',designSens:'Design sensible load',designLat:'Design latent load',coilTotalK:'Coil total capacity',coilSensK:'Coil sensible capacity',coilLatK:'Coil latent capacity',airflow:'Supply airflow',oaFlow:'Outdoor airflow',massFlow:'Mass flow of dry air',oaMin:'Minimum ventilation air',supplyState:'Required supply-air state',supplyStateK:'Air entering the room (after fan)',enteringAir:'Coil entering air',leavingAir:'Coil leaving air (LAT)',fanHeat:'Fan heat gain to air',coilCapacity:'Coil capacity',coilShr:'Coil SHR',adp:'Apparatus dew point',bf:'Bypass / contact factor',waterFlow:'Chilled-water flow',waterFlowLs:'Water flow',pipeDN:'Coil water pipe',lmtd:'Counterflow LMTD',faceArea:'Coil face area',coilSize:'Coil face L × H',faceVelOut:'Coil face velocity',filterVel:'Filter face velocity',condensate:'Condensate',drainDN:'Condensate drain pipe',airDp:'Coil air-side pressure drop',fanShaft:'Fan shaft power / minimum motor',calculate:'Calculate',addToSched:'Add to AHU schedule',reset:'Reset defaults',tabLoad:'From cooling load',tabKnown:'From known airflow',tabSched:'Schedule',kbAir:'Airflow',kbCoil:'Coil capacity',kbWater:'Water flow',kbSize:'Coil face L × H',kbLat:'Off-coil temperature',lgSuggest:'Red dashed = suggested value, still used in the calculation',lgOwn:'Black = a value you entered',lgCount:'fields on suggested values',grpLoad:'Capacity and airflow',grpAir:'Air states',grpCoil:'Coil',grpWater:'Water and condensate',block6:'Fan and Ventilation',block6note:'Fan pressure drives the fan heat gain and shaft power. Occupancy drives the minimum ventilation check.',schedule:'AHU Schedule',scheduleNote:'Each “Add to AHU schedule” press in tab A or B stores one row here.',exportCsv:'Export CSV',clearSched:'Clear schedule',disclaimer:'Results are preliminary, for the design stage. Final coil selection, water-side pressure drop and fan curve must be confirmed by the AHU manufacturer.',thTag:'AHU',thLoad:'Capacity (kW)',thAir:'Air (m³/h)',thCoil:'Coil (kW)',thWater:'Water (m³/h)',thPipe:'Pipe',thFace:'Coil face (mm)',thDel:'Delete',schedEmpty:'No AHU stored yet.',
   tabCommx:'AHU commissioning',kbcAir:'Measured airflow',kbcCapAir:'Air-side capacity',kbcCapWater:'Water-side capacity',kbcBal:'Heat balance',kbcVs:'Vs design',
   cxRef:'Design reference',cxRefNote:'Enter the design/quoted figures to check the field-measured values against. Leave a field blank to skip that comparison.',cxDesignAir:'Design airflow (CMH)',cxDesignCap:'Design cooling capacity (kW)',cxDesignWater:'Design water flow',cxDesignWaterUnit:'Water-flow unit',cxUnitM3h:'m³/h',cxUnitLs:'l/s (datasheet)',cxDesignEsp:'Design fan ESP (Pa)',
@@ -487,7 +551,12 @@ const dict={
   cxWFlowMode:'Water-flow source',cxWFlowDirect:'Measured directly (meter/valve)',cxWFlowDp:'Derived from coil pressure drop',cxDpMethod:'How to derive flow from ΔP',cxDpKv:'From coil Kv coefficient',cxDpDesign:'From design point (Q & ΔP)',cxPin:'Water pressure INTO coil (kPa)',cxPout:'Water pressure OUT of coil (kPa)',cxCoilKv:'Coil Kv (m³/h at 1 bar)',cxCoilKvNote:'Q = Kv × √(ΔP[bar]) — from the coil datasheet',cxDesignDp:'Design coil pressure drop (kPa)',cxDesignDpNote:'Uses the design water flow in block 1',
   cxFan:'Fan and electrical measurement',cxFanNote:'Enter the measured pressure and electrical readings at the panel. Electrical power = √3 × V × I × PF (3-phase) or V × I × PF (1-phase).',cxEsp:'Measured ESP (Pa)',cxFilterDp:'Filter pressure drop (Pa)',cxPhases:'Phases',cxPhase3:'3-phase',cxPhase1:'1-phase',cxVolt:'Measured voltage (V)',cxAmp:'Measured current (A)',cxPF:'Power factor PF',cxMotorkW:'Rated motor power (kW)',cxMotorNote:'Leave blank to only show measured power',
   cxResults:'Commissioning results',cxGrpAir:'Air side',cxGrpWater:'Water side',cxGrpBalance:'Balance and acceptance',cxGrpFan:'Fan and electrical',cxMAir:'Measured airflow',cxMAirCap:'Air-side capacity',cxMSens:'Sensible capacity',cxMShr:'Measured SHR',cxMCond:'Condensate',cxMWaterCap:'Water-side capacity',cxMWaterDt:'Water ΔT',cxMWaterFlow:'Water flow',cxMWaterDp:'Coil water ΔP',cxMKv:'Derived coil Kv',cxMWaterVs:'Water flow / design',cxMBalance:'Heat-balance deviation',cxMCapVs:'Capacity / design',cxMAirVs:'Airflow / design',cxMEsp:'Measured ESP',cxMFilter:'Filter drop',cxMElec:'Motor electrical power',cxMMotorLoad:'Motor load %',cxCalc:'Check commissioning',cxAddToSched:'Add to commissioning table',cxExportCsv:'Export commissioning CSV',
-  cxThTag:'AHU',cxThAir:'Air meas. (m³/h)',cxThAirVs:'Air/design (%)',cxThCap:'Air cap (kW)',cxThCapVs:'Cap/design (%)',cxThWater:'Water cap (kW)',cxThBal:'Balance (%)',cxThVerdict:'Verdict',cxSchedEmpty:'No AHU stored in the commissioning table yet.',cxVerPass:'Pass',cxVerMarg:'Marginal',cxVerFail:'Fail'}
+  cxThTag:'AHU',cxThAir:'Air meas. (m³/h)',cxThAirVs:'Air/design (%)',cxThCap:'Air cap (kW)',cxThCapVs:'Cap/design (%)',cxThWater:'Water cap (kW)',cxThBal:'Balance (%)',cxThVerdict:'Verdict',cxSchedEmpty:'No AHU stored in the commissioning table yet.',cxVerPass:'Pass',cxVerMarg:'Marginal',cxVerFail:'Fail',
+  tabFan:'Frequency & pressure',kfHz:'Set frequency',kfFlow:'Airflow',kfTsp:'Fan pressure',kfPower:'Shaft power',kfSave:'Energy saving',
+  fRef:'Reference operating point (rated)',fRefNote:'Enter one known fan operating point (usually the rated point at 50 Hz): airflow, pressure and power. These anchor the affinity scaling when the frequency changes.',fRefHz:'Reference frequency f₁ (Hz)',fRefFlow:'Reference airflow Q₁ (CMH)',fRefTsp:'Reference fan TSP₁ (Pa)',fRefPower:'Reference shaft power P₁ (kW)',fRefPowerNote:'Leave blank → estimated from Q₁·TSP₁ / efficiency',fRefEff:'Overall fan efficiency (%)',
+  fNew:'New operating point',fNewNote:'Drive by the frequency set on the VFD, or by a target airflow — the app uses the affinity laws: Q∝N, pressure∝N², power∝N³.',fDrive:'Drive by',fDriveHz:'Set frequency (Hz)',fDriveFlow:'Target airflow (CMH)',fNewHz:'New frequency f₂ (Hz)',fNewFlow:'Target airflow Q₂ (CMH)',fMinHz:'Minimum allowed frequency (Hz)',fMinHzNote:'Below this the motor may lack cooling',
+  fResults:'Results vs frequency',fGrpPoint:'New operating point',fGrpPower:'Power and saving',fMRatio:'Speed ratio f₂/f₁',fMHz:'Set frequency f₂',fMFlow:'Airflow Q₂',fMTsp:'Fan pressure TSP₂',fMPower:'Shaft power P₂',fMRefPower:'Reference shaft power P₁',fMSave:'Energy saving vs reference',fMSaveKw:'Power saved',fSweepNote:'Frequency sweep — airflow, pressure and power at each frequency (the bold row is the selected point).',fCalc:'Calculate',fExportCsv:'Export sweep CSV',
+  fThHz:'Frequency (Hz)',fThFlow:'Airflow (m³/h)',fThFlowPct:'Q (%)',fThTsp:'Pressure (Pa)',fThPower:'Power (kW)',fThPowerPct:'Power (%)'}
 };
 let lang=localStorage.getItem('ahuLangV14')||'vi';
 const T=k=>(dict[lang]&&dict[lang][k])||k;
@@ -914,6 +983,100 @@ function exportCxCsv(){
  const el=document.createElement('a');el.href=url;el.download=($('pjName').value||'AHU')+'_commissioning.csv';el.click();URL.revokeObjectURL(url);
 }
 
+/* ================== Tab D — fan affinity (frequency vs airflow / pressure / power) ================== */
+function fanModeUI(){
+ const byFlow=$('fDrive').value==='flow';
+ $('fNewHzW').hidden=byFlow;$('fNewFlowW').hidden=!byFlow;
+}
+let LAST_FAN_SWEEP=[];
+function calcFan(){
+ BAD_FIELDS=[];const vi=lang==='vi',msg=[];
+ const f1=num('fRefHz',50),Q1=num('fRefFlow',0),P1=num('fRefTsp',0);
+ const effR=Math.max(20,num('fRefEff',65))/100;
+ /* reference shaft power: use the entered value, else estimate air power / efficiency */
+ let kW1=num('fRefPower',0),kW1given=kW1>0;
+ const kW1est=(Q1>0&&P1>0)?Q1*P1/(3600*1000*effR):NaN;
+ if(!kW1given)kW1=kW1est;
+ const minHz=num('fMinHz',20);
+ /* new operating point via affinity laws (r = speed ratio) */
+ const drive=$('fDrive').value;
+ let f2,Q2,r;
+ if(drive==='flow'){Q2=num('fNewFlow',0);r=Q1>0?Q2/Q1:NaN;f2=f1*r;}
+ else{f2=num('fNewHz',40);r=f1>0?f2/f1:NaN;Q2=Q1*r;}
+ const P2=P1*r*r;                       /* pressure ∝ N²  */
+ const kW2=Number.isFinite(kW1)?kW1*r*r*r:NaN;   /* power ∝ N³  */
+ const saveKw=Number.isFinite(kW1)?kW1-kW2:NaN;
+ const savePct=Number.isFinite(r)?(1-r*r*r)*100:NaN;
+
+ const V=(id,html)=>{const e=$(id);if(e)e.innerHTML=html};
+ const ok=Number.isFinite(r)&&r>0&&Q1>0&&P1>0;
+ V('fRRatio',ok?`${fmt(r,3)} <span class="unit">(${fmt(r*100,0)}%)</span>`:'—');
+ V('fRHz',Number.isFinite(f2)?`${fmt(f2,1)} <span class="unit">Hz</span>`:'—');
+ V('fRFlow',Number.isFinite(Q2)?`${fmt(Q2,0)} <span class="unit">m³/h</span>`:'—');
+ V('fRTsp',ok?`${fmt(P2,0)} <span class="unit">Pa</span>`:'—');
+ V('fRPower',Number.isFinite(kW2)?`${fmt(kW2,2)} <span class="unit">kW</span>`:'—');
+ V('fRRefPower',Number.isFinite(kW1)?`${fmt(kW1,2)} <span class="unit">kW${kW1given?'':' ≈'}</span>`:'—');
+ V('fRSave',Number.isFinite(savePct)?`${fmt(savePct,1)} <span class="unit">%</span>`:'—');
+ V('fRSaveKw',Number.isFinite(saveKw)?`${fmt(saveKw,2)} <span class="unit">kW</span>`:'—');
+
+ /* --- frequency sweep table (fractions of f1, plus the selected point) --- */
+ const rows=[];
+ if(ok){
+   const fracs=[0.5,0.6,0.7,0.8,0.9,1.0];
+   const set=new Set(fracs.map(x=>Math.round(x*1000)));
+   if(Number.isFinite(r)&&r>0&&r<=1.2&&!set.has(Math.round(r*1000))){fracs.push(r);}
+   fracs.sort((a,b)=>a-b);
+   fracs.forEach(fr=>{
+     rows.push({hz:f1*fr,flow:Q1*fr,flowPct:fr*100,tsp:P1*fr*fr,
+       power:Number.isFinite(kW1)?kW1*fr*fr*fr:NaN,powerPct:fr*fr*fr*100,
+       sel:Math.abs(fr-r)<1e-6});
+   });
+ }
+ LAST_FAN_SWEEP=rows;
+ const b=$('fSweepBody');
+ if(b){
+   if(!rows.length){b.innerHTML=`<div class="sched-empty">${vi?'Nhập điểm gốc (Q₁, TSP₁) để xem bảng quét.':'Enter the reference point (Q₁, TSP₁) to see the sweep.'}</div>`;}
+   else b.innerHTML=`<table><thead><tr><th>${T('fThHz')}</th><th>${T('fThFlow')}</th><th>${T('fThFlowPct')}</th><th>${T('fThTsp')}</th><th>${T('fThPower')}</th><th>${T('fThPowerPct')}</th></tr></thead><tbody>`
+     +rows.map(x=>`<tr${x.sel?' style="font-weight:800;background:#eaf7ee"':''}><td>${fmt(x.hz,1)}</td><td>${fmt(x.flow,0)}</td><td>${fmt(x.flowPct,0)}</td><td>${fmt(x.tsp,0)}</td><td>${Number.isFinite(x.power)?fmt(x.power,2):'—'}</td><td>${fmt(x.powerPct,0)}</td></tr>`).join('')
+     +'</tbody></table>';
+ }
+
+ /* --- notices --- */
+ if(BAD_FIELDS.length)msg.push(['danger',(vi?'Giá trị không hợp lệ ở: ':'Invalid value in: ')+BAD_FIELDS.join(', ')+(vi?' — đang tạm dùng giá trị gợi ý.':' — the suggested value is being used instead.')]);
+ if(!(Q1>0)||!(P1>0))msg.push(['warn',vi?'Nhập lưu lượng gốc Q₁ và cột áp gốc TSP₁ để tính.':'Enter the reference airflow Q₁ and pressure TSP₁ to calculate.']);
+ else if(!(f1>0))msg.push(['danger',vi?'Tần số gốc f₁ phải lớn hơn 0.':'Reference frequency f₁ must be greater than zero.']);
+ else if(Number.isFinite(r)){
+   if(r>1.001)msg.push(['danger',vi?`Tần số mới ${fmt(f2,1)} Hz VƯỢT tần số gốc ${fmt(f1,0)} Hz (${fmt(r*100,0)}%) — chạy vượt tốc làm cột áp ×${fmt(r*r,2)} và công suất ×${fmt(r*r*r,2)}, phải kiểm tra giới hạn quạt/motor.`:`New frequency ${fmt(f2,1)} Hz EXCEEDS the reference ${fmt(f1,0)} Hz (${fmt(r*100,0)}%) — overspeed raises pressure ×${fmt(r*r,2)} and power ×${fmt(r*r*r,2)}; check the fan/motor limits.`]);
+   else msg.push(['ok',vi?`Ở ${fmt(f2,1)} Hz: lưu lượng ${fmt(Q2,0)} m³/h (${fmt(r*100,0)}%), cột áp ${fmt(P2,0)} Pa (${fmt(r*r*100,0)}%), tiết kiệm điện ${fmt(savePct,0)}%.`:`At ${fmt(f2,1)} Hz: airflow ${fmt(Q2,0)} m³/h (${fmt(r*100,0)}%), pressure ${fmt(P2,0)} Pa (${fmt(r*r*100,0)}%), energy saving ${fmt(savePct,0)}%.`]);
+   if(r<=1.001&&f2<minHz&&f2>0)msg.push(['warn',vi?`Tần số ${fmt(f2,1)} Hz thấp hơn mức tối thiểu ${fmt(minHz,0)} Hz — motor gắn quạt (không quạt cưỡng bức) dễ thiếu làm mát; nên đặt sàn tần số ở biến tần.`:`Frequency ${fmt(f2,1)} Hz is below the ${fmt(minHz,0)} Hz minimum — a fan-cooled motor may overheat; set a frequency floor on the VFD.`]);
+   if(r>0&&r<0.5)msg.push(['warn',vi?`Cột áp giảm theo bình phương còn ${fmt(r*r*100,0)}% — kiểm tra các nhánh xa/VAV vẫn đủ áp ở lưu lượng thấp này.`:`Pressure falls with the square to ${fmt(r*r*100,0)}% — check that far branches/VAV boxes still have enough pressure at this low flow.`]);
+ }
+ if(!kW1given&&Q1>0&&P1>0)msg.push(['warn',vi?`Công suất gốc P₁ để trống nên được ước tính ${fmt(kW1,2)} kW từ Q₁·TSP₁ và hiệu suất ${fmt(effR*100,0)}%. Nhập P₁ thực từ bản chào để chính xác hơn.`:`Reference power P₁ was blank, so it is estimated at ${fmt(kW1,2)} kW from Q₁·TSP₁ and ${fmt(effR*100,0)}% efficiency. Enter the actual P₁ for accuracy.`]);
+ msg.push(['warn',vi?'Định luật đồng dạng đúng khi quạt chạy trên đường hệ thống ΔP∝Q² (ống cố định, không có cột áp tĩnh độc lập). Nếu hệ có cột áp cố định (điều áp phòng, ống góp chung), cột áp thực ở lưu lượng thấp sẽ CAO hơn công thức này.':'The affinity laws hold when the fan rides a system curve ΔP∝Q² (fixed duct, no independent static). With a fixed static (room pressurisation, shared header), the real pressure at reduced flow is HIGHER than this estimate.']);
+ $('fMessages').innerHTML=msg.map(x=>`<div class="notice ${x[0]}">${x[1]}</div>`).join('');
+
+ /* --- keybar --- */
+ const setK=(n,html)=>{const e=$('fk'+n);if(e)e.innerHTML=html};
+ if(!ok){[1,2,3,4,5].forEach(n=>setK(n,'—'));}
+ else{
+   setK(1,`${fmt(f2,1)}<small>Hz</small>`);
+   setK(2,`${fmt(Q2,0)}<small>m³/h</small>`);
+   setK(3,`${fmt(P2,0)}<small>Pa</small>`);
+   setK(4,Number.isFinite(kW2)?`${fmt(kW2,2)}<small>kW</small>`:'—');
+   setK(5,Number.isFinite(savePct)?`${fmt(savePct,0)}<small>%</small>`:'—');
+ }
+ const kb=$('keybar-fan');if(kb)kb.classList.toggle('bad',Number.isFinite(r)&&r>1.001);
+ syncDefaultCount();pulse();save();
+}
+function exportFanCsv(){
+ const rows=LAST_FAN_SWEEP;if(!rows.length)return;
+ const head=[T('fThHz'),T('fThFlow'),T('fThFlowPct'),T('fThTsp'),T('fThPower'),T('fThPowerPct')];
+ const body=rows.map(x=>[x.hz.toFixed(1),x.flow.toFixed(0),x.flowPct.toFixed(0),x.tsp.toFixed(0),Number.isFinite(x.power)?x.power.toFixed(2):'',x.powerPct.toFixed(0)]);
+ const csv='﻿'+[head,...body].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+ const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
+ const el=document.createElement('a');el.href=url;el.download=($('pjName').value||'AHU')+'_fan_affinity.csv';el.click();URL.revokeObjectURL(url);
+}
+
 /* ---------- persistence ---------- */
 const KEY='ahuSizingV14',SKEY='ahuSchedV14';
 function save(){const o={};document.querySelectorAll('input,select').forEach(e=>{if(e.id)o[e.id]=e.value});localStorage.setItem(KEY,JSON.stringify(o))}
@@ -944,9 +1107,10 @@ function exportCsv(){
 const TAB_CARDS={
  load :['cardLoad','cardAir','cardWater','cardCoil','cardFan','cardResults'],
  known:['cardKnown','cardWater','cardCoil','cardFan','cardResults'],
- commx:['cardCxRef','cardCxAir','cardCxWater','cardCxFan','cardCxResults']
+ commx:['cardCxRef','cardCxAir','cardCxWater','cardCxFan','cardCxResults'],
+ fan  :['cardFanRef','cardFanNew','cardFanResults']
 };
-const ALL_CARDS=['cardLoad','cardAir','cardKnown','cardWater','cardCoil','cardFan','cardResults','cardCxRef','cardCxAir','cardCxWater','cardCxFan','cardCxResults'];
+const ALL_CARDS=['cardLoad','cardAir','cardKnown','cardWater','cardCoil','cardFan','cardResults','cardCxRef','cardCxAir','cardCxWater','cardCxFan','cardCxResults','cardFanRef','cardFanNew','cardFanResults'];
 let activeTab='load';
 function mountCards(tab){
  const mount=$('mount-'+tab);if(!mount)return;
@@ -957,7 +1121,7 @@ function mountCards(tab){
  ALL_CARDS.forEach(id=>{const el=$(id);if(el&&!keep.has(id))pool.appendChild(el)});
 }
 function setTab(tab,boot){
- if(!['load','known','commx','sched'].includes(tab))tab='load';
+ if(!['load','known','commx','fan','sched'].includes(tab))tab='load';
  activeTab=tab;
  syncDefaultCount();
  document.querySelectorAll('[role=tab]').forEach(b=>{
@@ -965,9 +1129,11 @@ function setTab(tab,boot){
    b.setAttribute('aria-selected',on?'true':'false');
    b.tabIndex=on?0:-1;
  });
- ['load','known','commx','sched'].forEach(t=>{$('panel-'+t).hidden=t!==tab});
+ ['load','known','commx','fan','sched'].forEach(t=>{$('panel-'+t).hidden=t!==tab});
  if(tab==='commx'){
    mountCards(tab);cxModeUI();calcCommx();renderCxSched();
+ }else if(tab==='fan'){
+   mountCards(tab);fanModeUI();calcFan();
  }else if(tab!=='sched'){
    $('calcMode').value=tab;
    mountCards(tab);
@@ -1043,12 +1209,14 @@ function cxModeUI(){
  const kv=$('cxDpMethod').value==='kv';
  $('cxCoilKvW').hidden=!dp||!kv;$('cxDesignDpW').hidden=!dp||kv;
 }
-function recalc(){if(activeTab==='commx'){cxModeUI();calcCommx()}else{modeUI();calculate()}}
+function recalc(){if(activeTab==='commx'){cxModeUI();calcCommx()}else if(activeTab==='fan'){fanModeUI();calcFan()}else{modeUI();calculate()}}
 document.querySelectorAll('input,select').forEach(e=>e.addEventListener('input',recalc));
 $('calcBtn').onclick=()=>calculate();
 $('cxCalcBtn').onclick=()=>calcCommx();
 $('cxAddBtn').onclick=()=>{calcCommx();if(!LAST_CX||!Number.isFinite(LAST_CX.air))return;const a=getCxSched();a.push(LAST_CX);setCxSched(a);renderCxSched()};
 $('cxCsvBtn').onclick=exportCxCsv;
+$('fCalcBtn').onclick=()=>calcFan();
+$('fCsvBtn').onclick=exportFanCsv;
 $('printBtn').onclick=()=>window.print();
 $('langBtn').onclick=()=>{lang=lang==='vi'?'en':'vi';localStorage.setItem('ahuLangV14',lang);applyLang();recalc()};
 $('resetBtn').onclick=()=>{
